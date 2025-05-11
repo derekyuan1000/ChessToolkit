@@ -1,10 +1,12 @@
 import chess
 import chess.pgn
+import chess.engine  # Import the chess engine module
 import tkinter as tk
 from tkinter import ttk
 import re
 from utils import get_piece_symbol
 
+engine_path = "engines/KomodoDragon3.3.exe"  # Path to the chess engine
 
 class SimpleChessGUI:
     def __init__(self, root, position):
@@ -71,14 +73,48 @@ class SimpleChessGUI:
 
         # Adjust canvas size to include padding for coordinates
         board_size = 8 * self.square_size
-        total_size = board_size + 40  # Add padding for coordinates
+        total_size = board_size + 40
         self.canvas.config(width=total_size, height=total_size)
 
-        # Draw rounded rectangle as background for the chessboard
+        # Draw rounded rectangle as background
         self.draw_rounded_rectangle(20, 20, board_size + 20, board_size + 20, radius=20, fill="#d9d9d9")
 
-        # Draw rank and file labels
+        # Draw chess squares and pieces FIRST
+        for row in range(8):
+            for col in range(8):
+                x1 = col * self.square_size + 20
+                y1 = row * self.square_size + 20
+                x2 = x1 + self.square_size
+                y2 = y1 + self.square_size
+                color = "#f0d9b5" if (row + col) % 2 == 0 else "#b58863"
+                square = chess.square(col, 7 - row)
+                if self.selected_square == square:
+                    color = "#ff6961"
+                elif self.hover_square == square:
+                    color = "#f4a261"
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
+                piece = self.board.piece_at(square)
+                if piece:
+                    text = get_piece_symbol(piece)
+                    self.canvas.create_text(x1 + self.square_size // 2,
+                                            y1 + self.square_size // 2,
+                                            text=text,
+                                            font=("Arial", int(self.square_size * 0.5), "bold"),
+                                            fill="black" if piece.color == chess.BLACK else "white")
+
+        # Draw coordinates ON TOP of everything else
         self.draw_coordinates()
+
+        # Update game status display
+        if self.board.is_checkmate():
+            self.turn_label.config(text=f"Checkmate! {'White' if not self.board.turn else 'Black'} wins!",
+                                   foreground="red")
+        elif self.board.is_check():
+            self.turn_label.config(text=f"Check! {'White' if self.board.turn else 'Black'} to move.",
+                                   foreground="orange")
+        else:
+            self.turn_label.config(text=f"Turn: {'White' if self.board.turn else 'Black'}", foreground="black")
+
 
         for row in range(8):
             for col in range(8):
@@ -100,7 +136,7 @@ class SimpleChessGUI:
                                             y1 + self.square_size // 2,
                                             text=text, font=("Arial", int(self.square_size * 0.5), "bold"),
                                             fill="black" if piece.color == chess.BLACK else "white")
-
+        self.draw_coordinates()
         # Update turn label with check or checkmate messages
         if self.board.is_checkmate():
             self.turn_label.config(text=f"Checkmate! {'White' if not self.board.turn else 'Black'} wins!",
@@ -145,20 +181,8 @@ class SimpleChessGUI:
                 text=str(rank_label), font=("Arial", int(self.square_size * 0.3), "bold"),
                 anchor="w"
             )
-            # Rank labels (1-8) on the right
-            self.canvas.create_text(
-                8 * self.square_size + 30, i * self.square_size + self.square_size // 2 + 20,
-                text=str(rank_label), font=("Arial", int(self.square_size * 0.3), "bold"),
-                anchor="e"
-            )
-            # File labels (a-h) on the top
-            file_label = chr(ord('a') + i)
-            self.canvas.create_text(
-                i * self.square_size + self.square_size // 2 + 20, 10,
-                text=file_label, font=("Arial", int(self.square_size * 0.3), "bold"),
-                anchor="n"
-            )
             # File labels (a-h) on the bottom
+            file_label = chr(ord('a') + i)
             self.canvas.create_text(
                 i * self.square_size + self.square_size // 2 + 20, 8 * self.square_size + 30,
                 text=file_label, font=("Arial", int(self.square_size * 0.3), "bold"),
@@ -280,11 +304,22 @@ class SimpleChessGUI:
                 self.selected_square = None
                 self.current_move_index += 1  # Update the current move index
                 self.update_pgn_display()  # Update PGN only when a move is made
+                # Print the FEN after a valid move
+                print("Current FEN:", self.board.fen())
+                self.analyze_position()  # Call engine analysis after the move
             else:
                 self.selected_square = square
         else:
             self.selected_square = square
         self.draw_board()
+
+    def analyze_position(self):
+        """
+        Analyzes the current board position using the chess engine.
+        """
+        with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
+            info = engine.analyse(self.board, chess.engine.Limit(time=0.1))
+            print("Engine Analysis:", info)
 
     def on_square_hover(self, event):
         col = event.x // self.square_size
@@ -307,7 +342,4 @@ class SimpleChessGUI:
         widget = self.pgn_canvas.winfo_containing(event.x_root, event.y_root)
         if isinstance(widget, ttk.Label):
             widget.event_generate("<Button-1>")
-
-
-
 

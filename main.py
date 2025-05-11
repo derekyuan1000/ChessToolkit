@@ -1,11 +1,24 @@
 import tkinter as tk
 import chess.pgn
 from gui import SimpleChessGUI
+import chess.engine
+
+engine_path = "engines/KomodoDragon3.3.exe"  # Renamed for clarity
+
 
 def display_chess_board(position):
     root = tk.Tk()
-    SimpleChessGUI(root, position)
+    gui = SimpleChessGUI(root, position)
     root.mainloop()
+    current_fen = gui.board.fen()
+    print("Final FEN:", current_fen)
+
+
+    with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
+        board = chess.Board(current_fen)
+        info = engine.analyse(board, chess.engine.Limit(time=0.05))
+        print("Engine Analysis:", info)
+
 
 starting_position = chess.STARTING_FEN
 display_chess_board(starting_position)
