@@ -1,12 +1,12 @@
 import chess
 import chess.pgn
-import chess.engine  # Import the chess engine module
+import chess.engine
 import tkinter as tk
 from tkinter import ttk
 import re
 from utils import get_piece_symbol
 
-engine_path = "engines/KomodoDragon3.3.exe"  # Path to the chess engine
+engine_path = "engines/KomodoDragon3.3.exe"
 
 class SimpleChessGUI:
     def __init__(self, root, position):
@@ -18,36 +18,29 @@ class SimpleChessGUI:
         self.hover_square = None
         self.game = chess.pgn.Game()
         self.node = self.game
-        self.current_move_index = -1  # Track the current move index
+        self.current_move_index = -1
 
-        # Modernize the main frame
         self.main_frame = ttk.Frame(root, padding=10)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Add a frame to hold the board and labels
         self.board_frame = ttk.Frame(self.main_frame)
-        self.board_frame.pack(side=tk.LEFT, padx=10, pady=(0, 10), fill=tk.BOTH, expand=True)  # Reduced top padding to 0
+        self.board_frame.pack(side=tk.LEFT, padx=10, pady=(0, 10), fill=tk.BOTH, expand=True)
 
-        # Chessboard canvas with resizing
-        self.canvas = tk.Canvas(self.board_frame,
-                                bg='white',
-                                highlightthickness=0)
+        self.canvas = tk.Canvas(self.board_frame, bg='white', highlightthickness=0)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(20, 0), pady=(20, 0))
         self.canvas.bind("<Configure>", self.on_canvas_resize)
         self.canvas.bind("<Button-1>", self.on_square_clicked)
         self.canvas.bind("<Motion>", self.on_square_hover)
 
-        # PGN frame
         self.pgn_frame = ttk.Frame(self.main_frame, padding=10)
         self.pgn_frame.pack(side=tk.RIGHT, padx=10, pady=10, fill=tk.Y)
 
         self.turn_label = ttk.Label(self.pgn_frame, font=("Arial", 12, "italic"))
-        self.turn_label.pack(pady=(0, 10))  # Move turn label above PGN display
+        self.turn_label.pack(pady=(0, 10))
 
         self.pgn_label = ttk.Label(self.pgn_frame, text="PGN History", font=("Arial", 14, "bold"))
         self.pgn_label.pack(pady=(0, 10))
 
-        # Add a divider line for better separation
         self.divider = ttk.Separator(self.pgn_frame, orient=tk.HORIZONTAL)
         self.divider.pack(fill=tk.X, pady=(0, 10))
 
@@ -64,9 +57,8 @@ class SimpleChessGUI:
         self.pgn_window = self.pgn_canvas.create_window((0, 0), window=self.pgn_inner_frame, anchor="nw", width=self.pgn_canvas.winfo_width())
 
         self.pgn_canvas.bind("<Configure>", self._resize_pgn_inner_frame)
-        self.pgn_canvas.bind("<Button-1>", self.on_pgn_click)  # Bind click event to PGN canvas
+        self.pgn_canvas.bind("<Button-1>", self.on_pgn_click)
 
-        # Engine Analysis frame
         self.analysis_frame = ttk.Frame(self.main_frame, padding=10)
         self.analysis_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=(0, 10))
 
@@ -78,20 +70,21 @@ class SimpleChessGUI:
 
         self.draw_board()
 
-        self.THINKTIME = 0.05
+        self.THINK_TIME = 0.05
+
+        self.highlighted_squares = set()
+        self.arrows = []
+        self.arrow_start_square = None
 
     def draw_board(self):
         self.canvas.delete("all")
 
-        # Adjust canvas size to include padding for coordinates
         board_size = 8 * self.square_size
         total_size = board_size + 40
         self.canvas.config(width=total_size, height=total_size)
 
-        # Draw rounded rectangle as background
         self.draw_rounded_rectangle(20, 20, board_size + 20, board_size + 20, radius=20, fill="#d9d9d9")
 
-        # Draw chess squares and pieces FIRST
         for row in range(8):
             for col in range(8):
                 x1 = col * self.square_size + 20
@@ -108,67 +101,18 @@ class SimpleChessGUI:
                 piece = self.board.piece_at(square)
                 if piece:
                     text = get_piece_symbol(piece)
-                    self.canvas.create_text(x1 + self.square_size // 2,
-                                            y1 + self.square_size // 2,
-                                            text=text,
-                                            font=("Arial", int(self.square_size * 0.5), "bold"),
-                                            fill="black" if piece.color == chess.BLACK else "white")
+                    self.canvas.create_text(x1 + self.square_size // 2, y1 + self.square_size // 2, text=text, font=("Arial", int(self.square_size * 0.5), "bold"), fill="black" if piece.color == chess.BLACK else "white")
 
-        # Draw coordinates ON TOP of everything else
         self.draw_coordinates()
 
-        # Update game status display
         if self.board.is_checkmate():
-            self.turn_label.config(text=f"Checkmate! {'White' if not self.board.turn else 'Black'} wins!",
-                                   foreground="red")
+            self.turn_label.config(text=f"Checkmate! {'White' if not self.board.turn else 'Black'} wins!", foreground="red")
         elif self.board.is_check():
-            self.turn_label.config(text=f"Check! {'White' if self.board.turn else 'Black'} to move.",
-                                   foreground="orange")
-        else:
-            self.turn_label.config(text=f"Turn: {'White' if self.board.turn else 'Black'}", foreground="black")
-
-
-        for row in range(8):
-            for col in range(8):
-                x1 = col * self.square_size + 20
-                y1 = row * self.square_size + 20
-                x2 = x1 + self.square_size
-                y2 = y1 + self.square_size
-                color = "#f0d9b5" if (row + col) % 2 == 0 else "#b58863"
-                square = chess.square(col, 7 - row)
-                if self.selected_square == square:
-                    color = "#ff6961"  # Highlight selected square
-                elif self.hover_square == square:
-                    color = "#f4a261"  # Highlight hovered square
-                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
-                piece = self.board.piece_at(square)
-                if piece:
-                    text = get_piece_symbol(piece)
-                    self.canvas.create_text(x1 + self.square_size // 2,
-                                            y1 + self.square_size // 2,
-                                            text=text, font=("Arial", int(self.square_size * 0.5), "bold"),
-                                            fill="black" if piece.color == chess.BLACK else "white")
-        self.draw_coordinates()
-        # Update turn label with check or checkmate messages
-        if self.board.is_checkmate():
-            self.turn_label.config(text=f"Checkmate! {'White' if not self.board.turn else 'Black'} wins!",
-                                   foreground="red")
-        elif self.board.is_check():
-            self.turn_label.config(text=f"Check! {'White' if self.board.turn else 'Black'} to move.",
-                                   foreground="orange")
+            self.turn_label.config(text=f"Check! {'White' if self.board.turn else 'Black'} to move.", foreground="orange")
         else:
             self.turn_label.config(text=f"Turn: {'White' if self.board.turn else 'Black'}", foreground="black")
 
     def draw_rounded_rectangle(self, x1, y1, x2, y2, radius=20, **kwargs):
-        """
-        Draws a rounded rectangle on the canvas.
-        :param x1: Top-left x-coordinate
-        :param y1: Top-left y-coordinate
-        :param x2: Bottom-right x-coordinate
-        :param y2: Bottom-right y-coordinate
-        :param radius: Radius of the corners
-        :param kwargs: Additional arguments for the canvas.create_polygon method
-        """
         points = [
             (x1 + radius, y1),
             (x2 - radius, y1),
@@ -182,44 +126,22 @@ class SimpleChessGUI:
         self.canvas.create_polygon(points, smooth=True, **kwargs)
 
     def draw_coordinates(self):
-        """
-        Draws rank (1-8) and file (a-h) labels around the chessboard.
-        """
         for i in range(8):
-            # Rank labels (1-8) on the left
             rank_label = 8 - i
-            self.canvas.create_text(
-                10, i * self.square_size + self.square_size // 2 + 20,
-                text=str(rank_label), font=("Arial", int(self.square_size * 0.3), "bold"),
-                anchor="w"
-            )
-            # File labels (a-h) on the bottom
+            self.canvas.create_text(10, i * self.square_size + self.square_size // 2 + 20, text=str(rank_label), font=("Arial", int(self.square_size * 0.3), "bold"), anchor="w")
             file_label = chr(ord('a') + i)
-            self.canvas.create_text(
-                i * self.square_size + self.square_size // 2 + 20, 8 * self.square_size + 30,
-                text=file_label, font=("Arial", int(self.square_size * 0.3), "bold"),
-                anchor="s"
-            )
+            self.canvas.create_text(i * self.square_size + self.square_size // 2 + 20, 8 * self.square_size + 30, text=file_label, font=("Arial", int(self.square_size * 0.3), "bold"), anchor="s")
 
     def _resize_pgn_inner_frame(self, event):
-        """
-        Resizes the PGN inner frame to match the width of the canvas.
-        """
         canvas_width = event.width
         self.pgn_canvas.itemconfig(self.pgn_window, width=canvas_width)
 
     def on_canvas_resize(self, event):
-        """
-        Handles resizing of the canvas and redraws the board with updated dimensions.
-        """
-        new_size = min(event.width - 40, event.height - 40) // 8  # Adjust for padding
+        new_size = min(event.width - 40, event.height - 40) // 8
         self.square_size = new_size
         self.draw_board()
 
     def update_pgn_display(self):
-        """
-        Updates the PGN display with each move split into two columns (white and black).
-        """
         for widget in self.pgn_inner_frame.winfo_children():
             widget.destroy()
 
@@ -230,7 +152,7 @@ class SimpleChessGUI:
             move_frame = ttk.Frame(self.pgn_inner_frame)
             move_frame.pack(fill=tk.X, pady=2, padx=0)
 
-            parts = move.split(" ", 2)  # Split into move number, white move, and black move
+            parts = move.split(" ", 2)
             move_number = parts[0] if len(parts) > 0 else ""
             white_move = parts[1] if len(parts) > 1 else ""
             black_move = parts[2] if len(parts) > 2 else ""
@@ -238,25 +160,11 @@ class SimpleChessGUI:
             move_number_label = ttk.Label(move_frame, text=move_number, font=("Courier", 12), anchor="center", width=5)
             move_number_label.pack(side=tk.LEFT, fill=tk.Y)
 
-            white_move_label = ttk.Label(
-                move_frame,
-                text=white_move,
-                font=("Courier", 12),
-                anchor="center",
-                background="#add8e6" if idx * 2 == self.current_move_index else "#ffffff",
-                width=10
-            )
+            white_move_label = ttk.Label(move_frame, text=white_move, font=("Courier", 12), anchor="center", background="#add8e6" if idx * 2 == self.current_move_index else "#ffffff", width=10)
             white_move_label.pack(side=tk.LEFT, fill=tk.Y, padx=(5, 5))
             white_move_label.bind("<Button-1>", lambda e, move_idx=idx * 2: self.go_to_move(move_idx))
 
-            black_move_label = ttk.Label(
-                move_frame,
-                text=black_move,
-                font=("Courier", 12),
-                anchor="center",
-                background="#add8e6" if idx * 2 + 1 == self.current_move_index else "#ffffff",
-                width=10
-            )
+            black_move_label = ttk.Label(move_frame, text=black_move, font=("Courier", 12), anchor="center", background="#add8e6" if idx * 2 + 1 == self.current_move_index else "#ffffff", width=10)
             black_move_label.pack(side=tk.LEFT, fill=tk.Y)
             black_move_label.bind("<Button-1>", lambda e, move_idx=idx * 2 + 1: self.go_to_move(move_idx))
 
@@ -284,12 +192,8 @@ class SimpleChessGUI:
         return "\n".join(formatted)
 
     def go_to_move(self, move_index):
-        """
-        Reverts the board to the position corresponding to the given move index.
-        :param move_index: The index of the move to revert to.
-        """
-        self.board = chess.Board()  # Reset the board to the starting position
-        self.node = self.game  # Reset the PGN node to the root
+        self.board = chess.Board()
+        self.node = self.game
         for i, move in enumerate(self.game.mainline_moves()):
             if i > move_index:
                 break
@@ -297,14 +201,13 @@ class SimpleChessGUI:
             self.node = self.node.variation(0) if self.node.variations else self.node
         self.selected_square = None
         self.hover_square = None
-        self.current_move_index = move_index  # Update the current move index
-        self.update_pgn_display()  # Refresh PGN display to highlight the current move
+        self.current_move_index = move_index
+        self.update_pgn_display()
         self.draw_board()
 
     def on_square_clicked(self, event):
-        col = event.x // self.square_size
-        row = 7 - (event.y // self.square_size)
-        # Ensure the click is within the board boundaries
+        col = (event.x - 20) // self.square_size
+        row = 7 - ((event.y - 20) // self.square_size)
         if not (0 <= col < 8 and 0 <= row < 8):
             return
         square = chess.square(col, row)
@@ -314,11 +217,10 @@ class SimpleChessGUI:
                 self.board.push(move)
                 self.node = self.node.add_variation(move)
                 self.selected_square = None
-                self.current_move_index += 1  # Update the current move index
-                self.update_pgn_display()  # Update PGN only when a move is made
-                # Print the FEN after a valid move
+                self.current_move_index += 1
+                self.update_pgn_display()
                 print("Current FEN:", self.board.fen())
-                self.analyze_position()  # Call engine analysis after the move
+                self.analyze_position()
             else:
                 self.selected_square = square
         else:
@@ -326,22 +228,16 @@ class SimpleChessGUI:
         self.draw_board()
 
     def analyze_position(self):
-        """
-        Analyzes the current board position using the chess engine and displays the results.
-        """
         with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
-            info = engine.analyse(self.board, chess.engine.Limit(time=self.THINKTIME))
+            info = None
+            while not info or "pv" not in info or not info["pv"]:
+                info = engine.analyse(self.board, chess.engine.Limit(time=self.THINK_TIME))
             self.display_analysis(info)
 
     def display_analysis(self, info):
-        """
-        Displays the engine analysis results in the analysis text box.
-        :param info: The analysis information from the chess engine.
-        """
         self.analysis_text.config(state=tk.NORMAL)
-        self.analysis_text.delete(1.0, tk.END)  # Clear previous analysis
+        self.analysis_text.delete(1.0, tk.END)
 
-        # Extract and format relevant information
         if "score" in info:
             score = info["score"].relative
             if score.is_mate():
@@ -351,41 +247,37 @@ class SimpleChessGUI:
         else:
             analysis_text = "No score available."
 
-        if "pv" in info:
-            # Use a copy of the board to apply moves safely
+        if "pv" in info and len(info["pv"]) > 0:
             analysis_board = self.board.copy()
             moves = []
-            for move in info["pv"]:
-                try:
+            try:
+                for move in info["pv"]:
                     moves.append(analysis_board.san(move))
                     analysis_board.push(move)
-                except Exception as e:
-                    print(f"Error processing move {move}: {e}")
-                    break  # Stop if a move is invalid
-            analysis_text += f"\nBest Line: {' '.join(moves)}"
+                analysis_text += f"\nBest Line: {' '.join(moves)}"
+            except Exception as e:
+                print(f"Error processing principal variation: {e}")
+                analysis_text += "\nBest Line: Error processing moves."
+        else:
+            analysis_text += "\nBest Line: No moves provided by the engine."
 
         self.analysis_text.insert(tk.END, analysis_text)
         self.analysis_text.config(state=tk.DISABLED)
 
     def on_square_hover(self, event):
-        col = event.x // self.square_size
-        row = 7 - (event.y // self.square_size)
-        # Ensure the hover is within the board boundaries
+        col = (event.x - 20) // self.square_size
+        row = 7 - ((event.y - 20) // self.square_size)
         if not (0 <= col < 8 and 0 <= row < 8):
-            if self.hover_square is not None:  # Clear hover if outside the board
+            if self.hover_square is not None:
                 self.hover_square = None
                 self.draw_board()
             return
         square = chess.square(col, row)
-        if self.hover_square != square:  # Only redraw if the hover square changes
+        if self.hover_square != square:
             self.hover_square = square
             self.draw_board()
 
     def on_pgn_click(self, event):
-        """
-        Handles clicks on the PGN canvas.
-        """
         widget = self.pgn_canvas.winfo_containing(event.x_root, event.y_root)
         if isinstance(widget, ttk.Label):
             widget.event_generate("<Button-1>")
-
