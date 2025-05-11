@@ -9,7 +9,7 @@ from utils import get_piece_symbol
 class SimpleChessGUI:
     def __init__(self, root, position):
         self.root = root
-        self.root.title("Simple Chess")
+        self.root.title("Chess Toolkit")
         self.board = chess.Board(position)
         self.square_size = 60
         self.selected_square = None
@@ -22,13 +22,16 @@ class SimpleChessGUI:
         self.main_frame = ttk.Frame(root, padding=10)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Chessboard canvas
-        self.canvas = tk.Canvas(self.main_frame,
-                                width=8 * self.square_size,
-                                height=8 * self.square_size,
+        # Add a frame to hold the board and labels
+        self.board_frame = ttk.Frame(self.main_frame)
+        self.board_frame.pack(side=tk.LEFT, padx=10, pady=(0, 10), fill=tk.BOTH, expand=True)  # Reduced top padding to 0
+
+        # Chessboard canvas with resizing
+        self.canvas = tk.Canvas(self.board_frame,
                                 bg='white',
                                 highlightthickness=0)
-        self.canvas.pack(side=tk.LEFT, padx=10, pady=10)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(20, 0), pady=(20, 0))
+        self.canvas.bind("<Configure>", self.on_canvas_resize)
         self.canvas.bind("<Button-1>", self.on_square_clicked)
         self.canvas.bind("<Motion>", self.on_square_hover)
 
@@ -66,13 +69,21 @@ class SimpleChessGUI:
     def draw_board(self):
         self.canvas.delete("all")
 
+        # Adjust canvas size to include padding for coordinates
+        board_size = 8 * self.square_size
+        total_size = board_size + 40  # Add padding for coordinates
+        self.canvas.config(width=total_size, height=total_size)
+
         # Draw rounded rectangle as background for the chessboard
-        self.draw_rounded_rectangle(0, 0, 8 * self.square_size, 8 * self.square_size, radius=20, fill="#d9d9d9")
+        self.draw_rounded_rectangle(20, 20, board_size + 20, board_size + 20, radius=20, fill="#d9d9d9")
+
+        # Draw rank and file labels
+        self.draw_coordinates()
 
         for row in range(8):
             for col in range(8):
-                x1 = col * self.square_size
-                y1 = row * self.square_size
+                x1 = col * self.square_size + 20
+                y1 = row * self.square_size + 20
                 x2 = x1 + self.square_size
                 y2 = y1 + self.square_size
                 color = "#f0d9b5" if (row + col) % 2 == 0 else "#b58863"
@@ -87,14 +98,16 @@ class SimpleChessGUI:
                     text = get_piece_symbol(piece)
                     self.canvas.create_text(x1 + self.square_size // 2,
                                             y1 + self.square_size // 2,
-                                            text=text, font=("Arial", 32, "bold"),
+                                            text=text, font=("Arial", int(self.square_size * 0.5), "bold"),
                                             fill="black" if piece.color == chess.BLACK else "white")
 
         # Update turn label with check or checkmate messages
         if self.board.is_checkmate():
-            self.turn_label.config(text=f"Checkmate! {'White' if not self.board.turn else 'Black'} wins!", foreground="red")
+            self.turn_label.config(text=f"Checkmate! {'White' if not self.board.turn else 'Black'} wins!",
+                                   foreground="red")
         elif self.board.is_check():
-            self.turn_label.config(text=f"Check! {'White' if self.board.turn else 'Black'} to move.", foreground="orange")
+            self.turn_label.config(text=f"Check! {'White' if self.board.turn else 'Black'} to move.",
+                                   foreground="orange")
         else:
             self.turn_label.config(text=f"Turn: {'White' if self.board.turn else 'Black'}", foreground="black")
 
@@ -120,12 +133,52 @@ class SimpleChessGUI:
         ]
         self.canvas.create_polygon(points, smooth=True, **kwargs)
 
+    def draw_coordinates(self):
+        """
+        Draws rank (1-8) and file (a-h) labels around the chessboard.
+        """
+        for i in range(8):
+            # Rank labels (1-8) on the left
+            rank_label = 8 - i
+            self.canvas.create_text(
+                10, i * self.square_size + self.square_size // 2 + 20,
+                text=str(rank_label), font=("Arial", int(self.square_size * 0.3), "bold"),
+                anchor="w"
+            )
+            # Rank labels (1-8) on the right
+            self.canvas.create_text(
+                8 * self.square_size + 30, i * self.square_size + self.square_size // 2 + 20,
+                text=str(rank_label), font=("Arial", int(self.square_size * 0.3), "bold"),
+                anchor="e"
+            )
+            # File labels (a-h) on the top
+            file_label = chr(ord('a') + i)
+            self.canvas.create_text(
+                i * self.square_size + self.square_size // 2 + 20, 10,
+                text=file_label, font=("Arial", int(self.square_size * 0.3), "bold"),
+                anchor="n"
+            )
+            # File labels (a-h) on the bottom
+            self.canvas.create_text(
+                i * self.square_size + self.square_size // 2 + 20, 8 * self.square_size + 30,
+                text=file_label, font=("Arial", int(self.square_size * 0.3), "bold"),
+                anchor="s"
+            )
+
     def _resize_pgn_inner_frame(self, event):
         """
         Resizes the PGN inner frame to match the width of the canvas.
         """
         canvas_width = event.width
         self.pgn_canvas.itemconfig(self.pgn_window, width=canvas_width)
+
+    def on_canvas_resize(self, event):
+        """
+        Handles resizing of the canvas and redraws the board with updated dimensions.
+        """
+        new_size = min(event.width - 40, event.height - 40) // 8  # Adjust for padding
+        self.square_size = new_size
+        self.draw_board()
 
     def update_pgn_display(self):
         """
@@ -215,6 +268,9 @@ class SimpleChessGUI:
     def on_square_clicked(self, event):
         col = event.x // self.square_size
         row = 7 - (event.y // self.square_size)
+        # Ensure the click is within the board boundaries
+        if not (0 <= col < 8 and 0 <= row < 8):
+            return
         square = chess.square(col, row)
         if self.selected_square is not None:
             move = chess.Move(self.selected_square, square)
@@ -233,6 +289,12 @@ class SimpleChessGUI:
     def on_square_hover(self, event):
         col = event.x // self.square_size
         row = 7 - (event.y // self.square_size)
+        # Ensure the hover is within the board boundaries
+        if not (0 <= col < 8 and 0 <= row < 8):
+            if self.hover_square is not None:  # Clear hover if outside the board
+                self.hover_square = None
+                self.draw_board()
+            return
         square = chess.square(col, row)
         if self.hover_square != square:  # Only redraw if the hover square changes
             self.hover_square = square
@@ -245,3 +307,7 @@ class SimpleChessGUI:
         widget = self.pgn_canvas.winfo_containing(event.x_root, event.y_root)
         if isinstance(widget, ttk.Label):
             widget.event_generate("<Button-1>")
+
+
+
+
