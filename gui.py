@@ -16,6 +16,7 @@ class SimpleChessGUI:
         self.hover_square = None
         self.game = chess.pgn.Game()
         self.node = self.game
+        self.current_move_index = -1  # Track the current move index
 
         # Modernize the main frame
         self.main_frame = ttk.Frame(root, padding=10)
@@ -148,11 +149,25 @@ class SimpleChessGUI:
             move_number_label = ttk.Label(move_frame, text=move_number, font=("Courier", 12), anchor="center", width=5)
             move_number_label.pack(side=tk.LEFT, fill=tk.Y)
 
-            white_move_label = ttk.Label(move_frame, text=white_move, font=("Courier", 12), anchor="center", background="#ffffff", width=10)
+            white_move_label = ttk.Label(
+                move_frame,
+                text=white_move,
+                font=("Courier", 12),
+                anchor="center",
+                background="#add8e6" if idx * 2 == self.current_move_index else "#ffffff",
+                width=10
+            )
             white_move_label.pack(side=tk.LEFT, fill=tk.Y, padx=(5, 5))
             white_move_label.bind("<Button-1>", lambda e, move_idx=idx * 2: self.go_to_move(move_idx))
 
-            black_move_label = ttk.Label(move_frame, text=black_move, font=("Courier", 12), anchor="center", background="#ffffff", width=10)
+            black_move_label = ttk.Label(
+                move_frame,
+                text=black_move,
+                font=("Courier", 12),
+                anchor="center",
+                background="#add8e6" if idx * 2 + 1 == self.current_move_index else "#ffffff",
+                width=10
+            )
             black_move_label.pack(side=tk.LEFT, fill=tk.Y)
             black_move_label.bind("<Button-1>", lambda e, move_idx=idx * 2 + 1: self.go_to_move(move_idx))
 
@@ -193,6 +208,8 @@ class SimpleChessGUI:
             self.node = self.node.variation(0) if self.node.variations else self.node
         self.selected_square = None
         self.hover_square = None
+        self.current_move_index = move_index  # Update the current move index
+        self.update_pgn_display()  # Refresh PGN display to highlight the current move
         self.draw_board()
 
     def on_square_clicked(self, event):
@@ -205,6 +222,7 @@ class SimpleChessGUI:
                 self.board.push(move)
                 self.node = self.node.add_variation(move)
                 self.selected_square = None
+                self.current_move_index += 1  # Update the current move index
                 self.update_pgn_display()  # Update PGN only when a move is made
             else:
                 self.selected_square = square

@@ -1,6 +1,5 @@
 import tkinter as tk
-import chess
-import chess.pgn  # Ensure chess.pgn is imported
+import chess.pgn
 from gui import SimpleChessGUI
 
 def display_chess_board(position):
