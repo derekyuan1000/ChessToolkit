@@ -7,12 +7,38 @@ from tkinter import filedialog
 import re
 from utils import get_piece_symbol
 
-engine_path = "engines/Stockfish17.exe"
-
 class SimpleChessGUI:
-    def __init__(self, root, position):
+    def __init__(self, root, position, engine_path="engines/Stockfish17.exe"):
         self.root = root
-        self.root.title("Chess Toolkit")
+        self.engine_path = engine_path  # Initialize engine_path properly
+
+        self.title_frame = ttk.Frame(root, padding=10)
+        self.title_frame.pack(fill=tk.X)
+
+        # Update program name and remove the title under it
+        self.title_label = ttk.Label(self.title_frame, text="Chess Toolkit", font=("Arial", 16, "bold"))
+        self.title_label.pack(side=tk.LEFT)
+
+        # Move "Change Engine" dropdown to the left side
+        self.engines_menu_button = ttk.Menubutton(self.title_frame, text="Change Engine", direction="below")
+        self.engines_menu = tk.Menu(self.engines_menu_button, tearoff=0)
+        self.engines_menu_button["menu"] = self.engines_menu
+        self.engines_menu_button.pack(side=tk.LEFT, padx=(10, 0))
+
+        # Add engine options to the dropdown menu
+        self.engines = {
+            "Stockfish": "engines/Stockfish17.exe",
+            "Komodo Dragon": "engines/KomodoDragon3.3.exe",
+            "Houdini": "engines/Houdini.exe",
+            "Obsidian": "engines/Obsidian.exe",
+        }
+
+        for engine_name, engine_path in self.engines.items():
+            self.engines_menu.add_command(
+                label=engine_name,
+                command=lambda path=engine_path: self.set_engine(path)
+            )
+
         self.board = chess.Board(position)
         self.square_size = 60
         self.selected_square = None
@@ -20,14 +46,6 @@ class SimpleChessGUI:
         self.game = chess.pgn.Game()
         self.node = self.game
         self.current_move_index = -1
-
-        self.engines = {
-            "Stockfish": "engines/Stockfish17.exe",
-            "Komodo Dragon": "engines/KomodoDragon3.3.exe",
-            "Houdini": "engines/Houdini.exe",
-            "Obsidian": "engines/Obsidian.exe",
-        }
-        self.engine_path = engine_path
 
         self.main_frame = ttk.Frame(root, padding=10)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
@@ -79,9 +97,6 @@ class SimpleChessGUI:
 
         self.evaluation_bar = tk.Canvas(self.analysis_frame, height=20, bg="#d9d9d9", highlightthickness=0)
         self.evaluation_bar.pack(fill=tk.X, pady=(5, 0))
-
-        self.engine_button = ttk.Button(self.analysis_frame, text="Select Engine", command=self.select_engine)
-        self.engine_button.pack(side=tk.RIGHT, padx=(0, 10), pady=(5, 0))
 
         self.draw_board()
 
@@ -242,24 +257,16 @@ class SimpleChessGUI:
             self.selected_square = square
         self.draw_board()
 
-    def select_engine(self):
-        engine_window = tk.Toplevel(self.root)
-        engine_window.title("Select Engine")
-        engine_window.geometry("200x250")
-
-        ttk.Label(engine_window, text="Select an Engine:", font=("Arial", 12, "bold")).pack(pady=10)
-
-        for engine_name, engine_path in self.engines.items():
-            ttk.Button(
-                engine_window,
-                text=engine_name,
-                command=lambda path=engine_path: self.set_engine(path, engine_window)
-            ).pack(pady=5)
-
-    def set_engine(self, path, window):
+    def set_engine(self, path):
         self.engine_path = path
-        print(f"Engine selected: {self.engine_path}")
-        window.destroy()
+        engine_name = next((name for name, p in self.engines.items() if p == path), "Unknown Engine")
+        print(f"Engine selected: {engine_name}")
+        self.analysis_text.config(state=tk.NORMAL)
+        self.analysis_text.delete(1.0, tk.END)
+        self.analysis_text.insert(tk.END, f"Engine changed to: {engine_name}\n")
+        self.analysis_text.tag_configure("confirmation_font", font=("Fredoka Regular", 14, "bold"))
+        self.analysis_text.tag_add("confirmation_font", "1.0", tk.END)
+        self.analysis_text.config(state=tk.DISABLED)
 
     def analyze_position(self):
         with chess.engine.SimpleEngine.popen_uci(self.engine_path) as engine:
@@ -296,16 +303,18 @@ class SimpleChessGUI:
         self.analysis_text.config(state=tk.NORMAL)
         self.analysis_text.delete(1.0, tk.END)
 
+        engine_name = next((name for name, path in self.engines.items() if path == self.engine_path), "Unknown Engine")
+
         if "score" in info:
             score = info["score"].relative
             self.update_evaluation_bar(score)
             if score.is_mate():
-                analysis_text = f"Mate in {score.mate()}"
+                analysis_text = f"{engine_name}: Mate in {score.mate()}"
             else:
-                analysis_text = f"Score: {score.score() / 100:.2f}"
+                analysis_text = f"{engine_name}: Score: {score.score() / 100:.2f}"
         else:
             self.update_evaluation_bar(chess.engine.PovScore(chess.engine.Cp(0), chess.WHITE))
-            analysis_text = "No score available."
+            analysis_text = f"{engine_name}: No score available."
 
         if "pv" in info and len(info["pv"]) > 0:
             analysis_board = self.board.copy()
@@ -321,7 +330,10 @@ class SimpleChessGUI:
         else:
             analysis_text += "\nBest Line: No moves provided by the engine."
 
+        # Update font to Fredoka Regular 400 and make it larger
         self.analysis_text.insert(tk.END, analysis_text)
+        self.analysis_text.tag_configure("analysis_font", font=("Fredoka Regular", 14))
+        self.analysis_text.tag_add("analysis_font", "1.0", tk.END)
         self.analysis_text.config(state=tk.DISABLED)
 
     def on_square_hover(self, event):
@@ -341,4 +353,3 @@ class SimpleChessGUI:
         widget = self.pgn_canvas.winfo_containing(event.x_root, event.y_root)
         if isinstance(widget, ttk.Label):
             widget.event_generate("<Button-1>")
-

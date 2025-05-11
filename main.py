@@ -7,7 +7,7 @@ engine_path = "engines/Stockfish17.exe"
 
 def display_chess_board(position):
     root = tk.Tk()
-    gui = SimpleChessGUI(root, position)
+    gui = SimpleChessGUI(root, position, engine_path)
     root.mainloop()
     current_fen = gui.board.fen()
     print("\nFinal FEN:", current_fen)
@@ -19,3 +19,4 @@ def display_chess_board(position):
 
 starting_position = chess.STARTING_FEN
 display_chess_board(starting_position)
+
