@@ -1,18 +1,18 @@
 import tkinter as tk
 import chess.pgn
-from gui import SimpleChessGUI
+from gui import ModernChessGUI
 import chess.engine
 
 engine_path = "engines/Stockfish17.exe"
 
 def display_chess_board(position):
     root = tk.Tk()
-    gui = SimpleChessGUI(root, position)
+    gui = ModernChessGUI(root, position)
     root.mainloop()
     current_fen = gui.board.fen()
     print("\nFinal FEN:", current_fen)
 
-    with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
+    with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:  # Fix here
         board = chess.Board(current_fen)
         info = engine.analyse(board, chess.engine.Limit(time=2))
         print("Engine Analysis:", info)
