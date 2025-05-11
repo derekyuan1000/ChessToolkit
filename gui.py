@@ -78,7 +78,11 @@ class SimpleChessGUI:
 
         self.draw_board()
 
-        self.THINKTIME = 0.05
+        self.THINK_TIME = 0.05
+
+        self.highlighted_squares = set()
+        self.arrows = []
+        self.arrow_start_square = None
 
     def draw_board(self):
         self.canvas.delete("all")
@@ -302,8 +306,8 @@ class SimpleChessGUI:
         self.draw_board()
 
     def on_square_clicked(self, event):
-        col = event.x // self.square_size
-        row = 7 - (event.y // self.square_size)
+        col = (event.x - 20) // self.square_size  # Adjust for padding
+        row = 7 - ((event.y - 20) // self.square_size)  # Adjust for padding
         # Ensure the click is within the board boundaries
         if not (0 <= col < 8 and 0 <= row < 8):
             return
@@ -330,7 +334,7 @@ class SimpleChessGUI:
         Analyzes the current board position using the chess engine and displays the results.
         """
         with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
-            info = engine.analyse(self.board, chess.engine.Limit(time=self.THINKTIME))
+            info = engine.analyse(self.board, chess.engine.Limit(time=self.THINK_TIME))
             self.display_analysis(info)
 
     def display_analysis(self, info):
@@ -351,25 +355,28 @@ class SimpleChessGUI:
         else:
             analysis_text = "No score available."
 
-        if "pv" in info:
+        # Ensure 'pv' exists and is not empty
+        if "pv" in info and len(info["pv"]) > 0:
             # Use a copy of the board to apply moves safely
             analysis_board = self.board.copy()
             moves = []
-            for move in info["pv"]:
-                try:
+            try:
+                for move in info["pv"]:
                     moves.append(analysis_board.san(move))
                     analysis_board.push(move)
-                except Exception as e:
-                    print(f"Error processing move {move}: {e}")
-                    break  # Stop if a move is invalid
-            analysis_text += f"\nBest Line: {' '.join(moves)}"
+                analysis_text += f"\nBest Line: {' '.join(moves)}"
+            except Exception as e:
+                print(f"Error processing principal variation: {e}")
+                analysis_text += "\nBest Line: Error processing moves."
+        else:
+            analysis_text += "\nBest Line: No moves provided by the engine."
 
         self.analysis_text.insert(tk.END, analysis_text)
         self.analysis_text.config(state=tk.DISABLED)
 
     def on_square_hover(self, event):
-        col = event.x // self.square_size
-        row = 7 - (event.y // self.square_size)
+        col = (event.x - 20) // self.square_size  # Adjust for padding
+        row = 7 - ((event.y - 20) // self.square_size)  # Adjust for padding
         # Ensure the hover is within the board boundaries
         if not (0 <= col < 8 and 0 <= row < 8):
             if self.hover_square is not None:  # Clear hover if outside the board
@@ -388,4 +395,5 @@ class SimpleChessGUI:
         widget = self.pgn_canvas.winfo_containing(event.x_root, event.y_root)
         if isinstance(widget, ttk.Label):
             widget.event_generate("<Button-1>")
+
 

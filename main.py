@@ -3,7 +3,7 @@ import chess.pgn
 from gui import SimpleChessGUI
 import chess.engine
 
-engine_path = "engines/KomodoDragon3.3.exe"  # Renamed for clarity
+engine_path = "engines/Stockfish17.exe"
 
 
 def display_chess_board(position):
