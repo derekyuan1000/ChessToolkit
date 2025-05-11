@@ -4,4 +4,3 @@ def get_piece_symbol(piece):
     'P': '♟', 'N': '♞', 'B': '♝', 'R': '♜', 'Q': '♛', 'K': '♚'
     }
     return symbols.get(piece.symbol(), '')
-

@@ -12,7 +12,7 @@ def display_chess_board(position):
     current_fen = gui.board.fen()
     print("\nFinal FEN:", current_fen)
 
-    with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:  # Fix here
+    with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
         board = chess.Board(current_fen)
         info = engine.analyse(board, chess.engine.Limit(time=2))
         print("Engine Analysis:", info)
