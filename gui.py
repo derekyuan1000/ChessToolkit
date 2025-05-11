@@ -66,7 +66,19 @@ class SimpleChessGUI:
         self.pgn_canvas.bind("<Configure>", self._resize_pgn_inner_frame)
         self.pgn_canvas.bind("<Button-1>", self.on_pgn_click)  # Bind click event to PGN canvas
 
+        # Engine Analysis frame
+        self.analysis_frame = ttk.Frame(self.main_frame, padding=10)
+        self.analysis_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=(0, 10))
+
+        self.analysis_label = ttk.Label(self.analysis_frame, text="Engine Analysis", font=("Arial", 14, "bold"))
+        self.analysis_label.pack(anchor="w", pady=(0, 5))
+
+        self.analysis_text = tk.Text(self.analysis_frame, height=5, wrap=tk.WORD, state=tk.DISABLED, bg="#f9f9f9")
+        self.analysis_text.pack(fill=tk.BOTH, expand=True)
+
         self.draw_board()
+
+        self.THINKTIME = 0.05
 
     def draw_board(self):
         self.canvas.delete("all")
@@ -315,11 +327,45 @@ class SimpleChessGUI:
 
     def analyze_position(self):
         """
-        Analyzes the current board position using the chess engine.
+        Analyzes the current board position using the chess engine and displays the results.
         """
         with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
-            info = engine.analyse(self.board, chess.engine.Limit(time=0.1))
-            print("Engine Analysis:", info)
+            info = engine.analyse(self.board, chess.engine.Limit(time=self.THINKTIME))
+            self.display_analysis(info)
+
+    def display_analysis(self, info):
+        """
+        Displays the engine analysis results in the analysis text box.
+        :param info: The analysis information from the chess engine.
+        """
+        self.analysis_text.config(state=tk.NORMAL)
+        self.analysis_text.delete(1.0, tk.END)  # Clear previous analysis
+
+        # Extract and format relevant information
+        if "score" in info:
+            score = info["score"].relative
+            if score.is_mate():
+                analysis_text = f"Mate in {score.mate()}"
+            else:
+                analysis_text = f"Score: {score.score() / 100:.2f}"
+        else:
+            analysis_text = "No score available."
+
+        if "pv" in info:
+            # Use a copy of the board to apply moves safely
+            analysis_board = self.board.copy()
+            moves = []
+            for move in info["pv"]:
+                try:
+                    moves.append(analysis_board.san(move))
+                    analysis_board.push(move)
+                except Exception as e:
+                    print(f"Error processing move {move}: {e}")
+                    break  # Stop if a move is invalid
+            analysis_text += f"\nBest Line: {' '.join(moves)}"
+
+        self.analysis_text.insert(tk.END, analysis_text)
+        self.analysis_text.config(state=tk.DISABLED)
 
     def on_square_hover(self, event):
         col = event.x // self.square_size
