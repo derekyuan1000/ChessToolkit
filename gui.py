@@ -3,10 +3,11 @@ import chess.pgn
 import chess.engine
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog
 import re
 from utils import get_piece_symbol
 
-engine_path = "engines/KomodoDragon3.3.exe"
+engine_path = "engines/Stockfish17.exe"
 
 class SimpleChessGUI:
     def __init__(self, root, position):
@@ -19,6 +20,14 @@ class SimpleChessGUI:
         self.game = chess.pgn.Game()
         self.node = self.game
         self.current_move_index = -1
+
+        self.engines = {
+            "Stockfish": "engines/Stockfish17.exe",
+            "Komodo Dragon": "engines/KomodoDragon3.3.exe",
+            "Houdini": "engines/Houdini.exe",
+            "Obsidian": "engines/Obsidian.exe",
+        }
+        self.engine_path = engine_path
 
         self.main_frame = ttk.Frame(root, padding=10)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
@@ -67,6 +76,12 @@ class SimpleChessGUI:
 
         self.analysis_text = tk.Text(self.analysis_frame, height=5, wrap=tk.WORD, state=tk.DISABLED, bg="#f9f9f9")
         self.analysis_text.pack(fill=tk.BOTH, expand=True)
+
+        self.evaluation_bar = tk.Canvas(self.analysis_frame, height=20, bg="#d9d9d9", highlightthickness=0)
+        self.evaluation_bar.pack(fill=tk.X, pady=(5, 0))
+
+        self.engine_button = ttk.Button(self.analysis_frame, text="Select Engine", command=self.select_engine)
+        self.engine_button.pack(side=tk.RIGHT, padx=(0, 10), pady=(5, 0))
 
         self.draw_board()
 
@@ -227,12 +242,55 @@ class SimpleChessGUI:
             self.selected_square = square
         self.draw_board()
 
+    def select_engine(self):
+        engine_window = tk.Toplevel(self.root)
+        engine_window.title("Select Engine")
+        engine_window.geometry("200x250")
+
+        ttk.Label(engine_window, text="Select an Engine:", font=("Arial", 12, "bold")).pack(pady=10)
+
+        for engine_name, engine_path in self.engines.items():
+            ttk.Button(
+                engine_window,
+                text=engine_name,
+                command=lambda path=engine_path: self.set_engine(path, engine_window)
+            ).pack(pady=5)
+
+    def set_engine(self, path, window):
+        self.engine_path = path
+        print(f"Engine selected: {self.engine_path}")
+        window.destroy()
+
     def analyze_position(self):
-        with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
+        with chess.engine.SimpleEngine.popen_uci(self.engine_path) as engine:
             info = None
             while not info or "pv" not in info or not info["pv"]:
                 info = engine.analyse(self.board, chess.engine.Limit(time=self.THINK_TIME))
             self.display_analysis(info)
+
+    def update_evaluation_bar(self, score):
+        self.evaluation_bar.delete("all")
+        bar_width = self.evaluation_bar.winfo_width()
+        bar_height = self.evaluation_bar.winfo_height()
+
+        if score.is_mate():
+            eval_value = 1.0 if score.mate() > 0 else -1.0
+            eval_text = f"Mate in {abs(score.mate())}"
+        else:
+            eval_value = max(-10, min(10, score.score() / 100))
+            eval_text = f"{eval_value:.2f}"
+            eval_value = (eval_value + 10) / 20  # Normalize to range [0, 1]
+
+        white_portion = eval_value * bar_width
+        self.evaluation_bar.create_rectangle(0, 0, white_portion, bar_height, fill="white", outline="")
+        self.evaluation_bar.create_rectangle(white_portion, 0, bar_width, bar_height, fill="black", outline="")
+
+        if eval_value > 0.5:  # White is winning
+            self.evaluation_bar.create_text(10, bar_height // 2, text=eval_text, font=("Arial", 10, "bold"),
+                                            fill="black", anchor="w")
+        else:  # Black is winning
+            self.evaluation_bar.create_text(bar_width - 10, bar_height // 2, text=eval_text, font=("Arial", 10, "bold"),
+                                            fill="white", anchor="e")
 
     def display_analysis(self, info):
         self.analysis_text.config(state=tk.NORMAL)
@@ -240,11 +298,13 @@ class SimpleChessGUI:
 
         if "score" in info:
             score = info["score"].relative
+            self.update_evaluation_bar(score)
             if score.is_mate():
                 analysis_text = f"Mate in {score.mate()}"
             else:
                 analysis_text = f"Score: {score.score() / 100:.2f}"
         else:
+            self.update_evaluation_bar(chess.engine.PovScore(chess.engine.Cp(0), chess.WHITE))
             analysis_text = "No score available."
 
         if "pv" in info and len(info["pv"]) > 0:
@@ -281,3 +341,4 @@ class SimpleChessGUI:
         widget = self.pgn_canvas.winfo_containing(event.x_root, event.y_root)
         if isinstance(widget, ttk.Label):
             widget.event_generate("<Button-1>")
+
