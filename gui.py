@@ -44,7 +44,7 @@ class ModernChessGUI:
         style.configure("Modern.TFrame", background="#2d2d2d")
         style.configure("Card.TFrame", background="#363636", borderwidth=2)
         style.configure("PanelTitle.TLabel", background="#363636", foreground="#ffffff", font=('Segoe UI', 10, 'bold'))
-        style.configure("Modern.TCombobox", fieldbackground="#404040", foreground="#ffffff", selectbackground="#4a9bff")
+        style.configure("Modern.TCombobox", fieldbackground="#404040", foreground="#000000", selectbackground="#4a9bff")  # Changed foreground to black
         style.configure("Modern.Treeview", background="#363636", fieldbackground="#363636", foreground="#ffffff", borderwidth=0)
         style.map("Modern.Treeview", background=[('selected', '#4a9bff')])
 
@@ -92,17 +92,17 @@ class ModernChessGUI:
         self.canvas.delete("all")
         board_size = 8 * self.square_size
         self.canvas.config(width=board_size, height=board_size)
-        self.create_round_rect(0, 0, board_size, board_size, radius=15, fill="#363636")
+        self.create_round_rect(0, 0, board_size, board_size, radius=15, fill="#1e1e1e")  # Darker background
         for row in range(8):
             for col in range(8):
                 x = col * self.square_size
                 y = row * self.square_size
-                color = "#eeeed5" if (row + col) % 2 == 0 else "#7d945d"
+                color = "#f0d9b5" if (row + col) % 2 == 0 else "#b58863"  # Light and dark brown squares
                 square = chess.square(col, 7 - row)
                 if self.selected_square == square:
-                    color = "#ff9e7a"
+                    color = "#ffcccb"  # Highlight selected square with light red
                 elif self.hover_square == square:
-                    color = "#b8c4a3" if (row + col) % 2 == 0 else "#6b8057"
+                    color = "#add8e6"  # Highlight hover square with light blue
                 self.create_round_rect(x, y, self.square_size, self.square_size, radius=3, fill=color)
                 piece = self.board.piece_at(square)
                 if piece:
@@ -171,16 +171,37 @@ class ModernChessGUI:
         bar_width = self.evaluation_bar.winfo_width()
         for i in range(bar_width):
             ratio = i / bar_width
-            color = "#%02x%02x%02x" % (int(255 * (1 - ratio)), int(255 * (1 - abs(0.5 - ratio) * 2)), int(255 * ratio))
+            # White-to-black gradient
+            color = "#%02x%02x%02x" % (int(255 * (1 - ratio)), int(255 * (1 - ratio)), int(255 * (1 - ratio)))
             self.evaluation_bar.create_line(i, 0, i, 20, fill=color)
         if score.is_mate():
             eval_value = 1.0 if score.mate() > 0 else 0.0
         else:
             eval_value = (score.score() / 100 + 10) / 20
         marker_x = eval_value * bar_width
-        self.evaluation_bar.create_line(marker_x, 0, marker_x, 20, fill="#ffffff", width=2)
-        text = self.format_score(score)
-        self.evaluation_bar.create_text(10, 10, text=text, anchor=tk.W, fill="#ffffff", font=("Segoe UI", 9))
+        self.evaluation_bar.create_line(marker_x, 0, marker_x, 20, fill="#ff0000", width=2)  # Red marker for clarity
+
+        # Determine text color and position
+        if score.is_mate():
+            text = f"Mate in {abs(score.mate())}"
+            text_color = "#000000" if score.mate() > 0 else "#ffffff"
+            text_anchor = tk.W if score.mate() > 0 else tk.E
+            text_x = 10 if score.mate() > 0 else bar_width - 10
+        else:
+            eval_value = score.score() / 100
+            text = f"{eval_value:.2f}"
+            if eval_value > 0:  # White is winning
+                text_color = "#000000"
+                text_anchor = tk.W
+                text_x = 10
+            else:  # Black is winning
+                text_color = "#ffffff"
+                text_anchor = tk.E
+                text_x = bar_width - 10
+
+        self.evaluation_bar.create_text(
+            text_x, 10, text=text, anchor=text_anchor, fill=text_color, font=("Segoe UI", 9)
+        )
 
     def on_square_clicked(self, event):
         col = (event.x) // self.square_size
@@ -188,12 +209,17 @@ class ModernChessGUI:
         if not (0 <= col < 8 and 0 <= row < 8):
             return
         square = chess.square(col, row)
-        if self.selected_square is not None:
+        piece = self.board.piece_at(square)
+
+        if self.selected_square is None:
+            if piece and piece.color == self.board.turn:
+                self.selected_square = square
+        else:
             move = chess.Move(self.selected_square, square)
             if move in self.board.legal_moves:
                 self.make_move(move)
-        else:
-            self.selected_square = square if self.board.piece_at(square) else None
+            self.selected_square = None
+
         self.draw_board()
 
     def make_move(self, move):
@@ -203,6 +229,7 @@ class ModernChessGUI:
         self.current_move_index += 1
         self.update_pgn_display()
         self.analyze_position()
+
 
     def update_pgn_display(self):
         self.pgn_tree.delete(*self.pgn_tree.get_children())
