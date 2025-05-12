@@ -55,7 +55,7 @@ Chess Toolkit Pro is a modern chess analysis and visualization tool designed for
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](master/LICENCE) file for details.
 
 ## Screenshots
 
