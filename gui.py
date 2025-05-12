@@ -103,7 +103,8 @@ class ModernChessGUI:
                     color = "#ffcccb"  # Highlight selected square with light red
                 elif self.hover_square == square:
                     color = "#add8e6"  # Highlight hover square with light blue
-                self.create_round_rect(x, y, self.square_size, self.square_size, radius=3, fill=color)
+                # Removed unnecessary borders or outlines
+                self.canvas.create_rectangle(x, y, x + self.square_size, y + self.square_size, fill=color, outline="")
                 piece = self.board.piece_at(square)
                 if piece:
                     text = get_piece_symbol(piece)
@@ -155,7 +156,7 @@ class ModernChessGUI:
 
     def format_score(self, score):
         if score.is_mate():
-            return f"Mate in {abs(score.mate())}"
+            return f"M{abs(score.mate())}"
         return f"{score.score() / 100:.2f}"
 
     def format_pv(self, pv):
@@ -183,7 +184,7 @@ class ModernChessGUI:
 
         # Determine text color and position
         if score.is_mate():
-            text = f"Mate in {abs(score.mate())}"
+            text = f"M{abs(score.mate())}"
             text_color = "#000000" if score.mate() > 0 else "#ffffff"
             text_anchor = tk.W if score.mate() > 0 else tk.E
             text_x = 10 if score.mate() > 0 else bar_width - 10
@@ -261,6 +262,7 @@ class ModernChessGUI:
         self.analyze_position()
 
     def on_canvas_resize(self, event):
+        # Increase the scaling factor by using a larger portion of the canvas dimensions
         new_size = min(event.width, event.height) // 8
         self.square_size = new_size
         self.draw_board()

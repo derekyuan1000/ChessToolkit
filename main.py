@@ -19,3 +19,11 @@ def display_chess_board(position):
 
 starting_position = chess.STARTING_FEN
 display_chess_board(starting_position)
+
+
+
+
+
+
+
+
