@@ -59,7 +59,7 @@ This project is licensed under the MIT License. See the [LICENSE](./LICENSE) fil
 
 ## Screenshots
 
-![Chess Toolkit Pro Screenshot](Screenshots\betaversion1.png)
+![Chess Toolkit Pro Screenshot](Screenshots/betaversion1.png)
 
 ## Contributing
 
