@@ -59,11 +59,11 @@ This project is licensed under the MIT License. See the [LICENSE](./LICENSE) fil
 
 ## Screenshots
 
-![Chess Toolkit Pro Screenshot](https://via.placeholder.com/800x400?text=Screenshot+Coming+Soon)
+![Chess Toolkit Pro Screenshot](Screenshots\betaversion1.png)
 
 ## Contributing
 
-Contributions are welcome! Feel free to submit issues or pull requests to improve the project.
+Contributions are welcome! Feel free to submit issues or pull requests to improve the project or email me at derekyuan10000@gmail.com
 
 ## Acknowledgments
 
