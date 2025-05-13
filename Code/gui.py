@@ -4,7 +4,7 @@ import chess
 import chess.engine
 import chess.pgn
 import customtkinter as ctk
-
+from tkinter import Listbox  # Add Listbox for move selection
 
 from utils import get_piece_symbol
 
@@ -155,16 +155,39 @@ class ModernChessGUI:
         history_label.pack(pady=(20, 10), padx=20, anchor="w")
 
         # Game history display
-        self.pgn_frame = ctk.CTkFrame(self.side_panel, corner_radius=10, fg_color="#2b2b2b")
-        self.pgn_frame.pack(fill="x", padx=20, pady=(0, 20))
+        history_frame = ctk.CTkFrame(self.side_panel, corner_radius=10, fg_color="#2b2b2b")
+        history_frame.pack(fill="x", padx=20, pady=(0, 20))
+        
+        # Container frame to force equal width
+        move_container = ctk.CTkFrame(history_frame, fg_color="transparent")
+        move_container.pack(fill="both", expand=True, padx=10, pady=10)
+        move_container.grid_columnconfigure(0, weight=1, uniform="move_cols")
+        move_container.grid_columnconfigure(1, weight=1, uniform="move_cols")
 
-        self.pgn_tree = ctk.CTkTextbox(
-            self.pgn_frame,
-            height=200,
-            font=ctk.CTkFont(family="Segoe UI", size=14)
+        self.white_moves_listbox = Listbox(
+            move_container,
+            font=("Segoe UI", 12),
+            height=10,
+            selectmode="single",
+            exportselection=False,
+            bg="#2b2b2b",
+            fg="white"
         )
-        self.pgn_tree.pack(fill="both", padx=10, pady=10)
-        self.pgn_tree.bind("<Button-1>", self.on_pgn_select)
+        self.white_moves_listbox.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+
+        self.black_moves_listbox = Listbox(
+            move_container,
+            font=("Segoe UI", 12),
+            height=10,
+            selectmode="single",
+            exportselection=False,
+            bg="#2b2b2b",
+            fg="white"
+        )
+        self.black_moves_listbox.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+
+        self.white_moves_listbox.bind("<<ListboxSelect>>", self.on_pgn_select)
+        self.black_moves_listbox.bind("<<ListboxSelect>>", self.on_pgn_select)
 
         # Engine analysis section
         analysis_label = ctk.CTkLabel(
@@ -416,32 +439,36 @@ class ModernChessGUI:
         self.analyze_position()
 
     def update_pgn_display(self):
-        self.pgn_tree.delete("1.0", "end")
-        pgn_str = self.get_pgn()
-
-        # Format the moves nicely
-        formatted_moves = []
-        moves = re.findall(r'(\d+)\.\s+(\S+)(?:\s+(\S+))?', pgn_str)
-        for move_num, white, black in moves:
-            move_str = f"{move_num}. {white} "
-            if black:
-                move_str += black
-            formatted_moves.append(move_str)
-
-        self.pgn_tree.insert("1.0", "\n".join(formatted_moves))
-
-    def get_pgn(self):
-        exporter = chess.pgn.StringExporter(headers=False)
-        return self.game.accept(exporter)
+        self.white_moves_listbox.delete(0, "end")
+        self.black_moves_listbox.delete(0, "end")
+        board = chess.Board()
+        for i, move in enumerate(self.game.mainline_moves()):
+            move_text = board.san(move)
+            if i % 2 == 0:
+                self.white_moves_listbox.insert("end", f"{(i // 2) + 1}. {move_text}")
+            else:
+                self.black_moves_listbox.insert("end", move_text)
+            board.push(move)
+        if self.white_moves_listbox.size() > 0 or self.black_moves_listbox.size() > 0:
+            self.highlight_selected_move(self.current_move_index)
 
     def on_pgn_select(self, event):
-        # Get the line clicked on
-        index = self.pgn_tree.index("@%d,%d" % (event.x, event.y))
-        line = int(float(index)) - 1
+        selected_index = (
+            self.white_moves_listbox.curselection() or self.black_moves_listbox.curselection()
+        )
+        if selected_index:
+            move_index = selected_index[0] * 2
+            if event.widget == self.black_moves_listbox:
+                move_index += 1
+            self.go_to_move(move_index)
 
-        if 0 <= line < len(re.findall(r'\d+\.', self.get_pgn())):
-            move_num = line + 1
-            self.go_to_move((move_num - 1) * 2)
+    def highlight_selected_move(self, move_index):
+        self.white_moves_listbox.selection_clear(0, "end")
+        self.black_moves_listbox.selection_clear(0, "end")
+        if move_index % 2 == 0:
+            self.white_moves_listbox.selection_set(move_index // 2)
+        else:
+            self.black_moves_listbox.selection_set(move_index // 2)
 
     def go_to_move(self, move_index):
         self.board = chess.Board()
@@ -454,6 +481,7 @@ class ModernChessGUI:
         self.current_move_index = move_index
         self.draw_board()
         self.analyze_position()
+        self.highlight_selected_move(move_index)
 
     def on_canvas_resize(self, event):
         new_size = min(event.width, event.height) // 8
@@ -520,3 +548,7 @@ class ModernChessGUI:
             
         except Exception as e:
             print(f"Error importing PGN: {str(e)}")
+
+
+
+

@@ -4,6 +4,7 @@ import customtkinter as ctk
 from utils import get_piece_symbol
 from Code.analysis import display_chess_board  # Import the analysis function
 import io
+from tkinter import Listbox  # Add Listbox for move selection
 
 
 def play_bot_game():
@@ -111,13 +112,48 @@ def play_bot_game():
             update_pgn()
 
     def update_pgn():
-        pgn_textbox.delete("1.0", "end")
+        white_moves_listbox.delete(0, "end")
+        black_moves_listbox.delete(0, "end")
         game = chess.pgn.Game()
         node = game
-        for move in board.move_stack:
+        board_copy = chess.Board()
+        for i, move in enumerate(board.move_stack):
             node = node.add_variation(move)
-        pgn_textbox.insert("1.0", str(game))
+            move_text = board_copy.san(move)
+            if i % 2 == 0:
+                white_moves_listbox.insert("end", f"{(i // 2) + 1}. {move_text}")
+            else:
+                black_moves_listbox.insert("end", move_text)
+            board_copy.push(move)
+        if white_moves_listbox.size() > 0 or black_moves_listbox.size() > 0:
+            highlight_selected_move(len(board.move_stack) - 1)
         return str(game)
+
+    def on_pgn_select(event):
+        selected_index = (
+            white_moves_listbox.curselection() or black_moves_listbox.curselection()
+        )
+        if selected_index:
+            move_index = selected_index[0] * 2
+            if event.widget == black_moves_listbox:
+                move_index += 1
+            go_to_move(move_index)
+
+    def highlight_selected_move(move_index):
+        white_moves_listbox.selection_clear(0, "end")
+        black_moves_listbox.selection_clear(0, "end")
+        if move_index % 2 == 0:
+            white_moves_listbox.selection_set(move_index // 2)
+        else:
+            black_moves_listbox.selection_set(move_index // 2)
+
+    def go_to_move(move_index):
+        nonlocal board
+        board = chess.Board()
+        for i, move in enumerate(board.move_stack[:move_index + 1]):
+            board.push(move)
+        draw_board()
+        highlight_selected_move(move_index)
 
     def start_game():
         nonlocal game_started
@@ -256,14 +292,40 @@ def play_bot_game():
     pgn_label = ctk.CTkLabel(side_frame, text="PGN:", font=("Segoe UI", 16, "bold"))
     pgn_label.pack(anchor="w", padx=10, pady=(10, 5))
 
-    pgn_textbox = ctk.CTkTextbox(
-        side_frame,
-        height=300,
-        font=("Segoe UI", 12)
-    )
-    pgn_textbox.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+    history_frame = ctk.CTkFrame(side_frame, fg_color="#2b2b2b")  # Match usual background
+    history_frame.pack(fill="x", padx=10, pady=(0, 10))
+    
+    # Container frame to force equal width
+    move_container = ctk.CTkFrame(history_frame, fg_color="transparent")
+    move_container.pack(fill="both", expand=True, padx=10, pady=10)
+    move_container.grid_columnconfigure(0, weight=1, uniform="move_cols")
+    move_container.grid_columnconfigure(1, weight=1, uniform="move_cols")
 
-    # Add "Back" button
+    white_moves_listbox = Listbox(
+        move_container,
+        font=("Segoe UI", 12),
+        height=10,
+        selectmode="single",
+        exportselection=False,
+        bg="#2b2b2b",
+        fg="white"
+    )
+    white_moves_listbox.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+
+    black_moves_listbox = Listbox(
+        move_container,
+        font=("Segoe UI", 12),
+        height=10,
+        selectmode="single",
+        exportselection=False,
+        bg="#2b2b2b",
+        fg="white"
+    )
+    black_moves_listbox.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+
+    white_moves_listbox.bind("<<ListboxSelect>>", on_pgn_select)
+    black_moves_listbox.bind("<<ListboxSelect>>", on_pgn_select)
+
     back_button = ctk.CTkButton(
         main_frame,
         text="Back",
@@ -277,3 +339,4 @@ def play_bot_game():
 
     draw_board()
     root.mainloop()
+
