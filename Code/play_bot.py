@@ -2,6 +2,8 @@ import chess
 import chess.engine
 import customtkinter as ctk
 from utils import get_piece_symbol
+from Code.analysis import display_chess_board  # Import the analysis function
+import io
 
 
 def play_bot_game():
@@ -111,12 +113,14 @@ def play_bot_game():
         for move in board.move_stack:
             node = node.add_variation(move)
         pgn_textbox.insert("1.0", str(game))
+        return str(game)
 
     def start_game():
         nonlocal game_started
         game_started = True
         bot_menu.configure(state="disabled")
         start_button.configure(text="Resign", command=resign_game)
+        analysis_button.pack_forget()  # Hide the analysis button during the game
         draw_board()
 
     def resign_game():
@@ -125,6 +129,7 @@ def play_bot_game():
         bot_menu.configure(state="normal")
         start_button.configure(text="Start Game", command=start_game)
         update_status("You resigned. Game over.")
+        analysis_button.pack(pady=(10, 10))  # Show the analysis button after the game ends
 
     def reset_game():
         nonlocal game_started, board, selected_square, hover_square
@@ -134,6 +139,7 @@ def play_bot_game():
         hover_square = None
         bot_menu.configure(state="normal")
         start_button.configure(text="Start Game", command=start_game)
+        analysis_button.pack_forget()  # Hide the analysis button during reset
         draw_board()
         update_pgn()
 
@@ -144,6 +150,25 @@ def play_bot_game():
 
     def update_status(message):
         status_label.configure(text=message)
+
+    def go_to_analysis():
+        """Open the analysis board with the current game's PGN."""
+        pgn = update_pgn()  # Get the PGN of the current game
+        try:
+            import io
+            pgn_io = io.StringIO(pgn)
+            game = chess.pgn.read_game(pgn_io)  # Parse the PGN
+            if game is None:
+                raise ValueError("Invalid PGN format")
+            root.destroy()  # Close the current window
+            from Code.gui import ModernChessGUI
+            root_analysis = ctk.CTk()
+            root_analysis.title("Chess Analysis")
+            gui = ModernChessGUI(root_analysis, position=chess.STARTING_FEN)
+            gui.load_pgn(pgn)  # Load the PGN into the analysis board
+            root_analysis.mainloop()
+        except Exception as e:
+            update_status(f"Error: {str(e)}")  # Display error message in the status label
 
     # Main layout
     main_frame = ctk.CTkFrame(root)
@@ -185,13 +210,29 @@ def play_bot_game():
     reset_button = ctk.CTkButton(side_frame, text="Reset Game", command=reset_game)
     reset_button.pack(pady=(0, 20))
 
+    analysis_button = ctk.CTkButton(
+        side_frame,
+        text="Go to Analysis",
+        command=go_to_analysis,
+        font=("Segoe UI", 16, "bold"),
+        height=60,  # Increase button height
+        width=250,  # Increase button width
+        corner_radius=10  # Round the corners
+    )
+    analysis_button.pack(pady=(20, 20))  # Add more padding
+    analysis_button.pack_forget()  # Hide the button initially
+
     status_label = ctk.CTkLabel(side_frame, text="", font=("Segoe UI", 14))
     status_label.pack(pady=(10, 10))
 
     pgn_label = ctk.CTkLabel(side_frame, text="PGN:", font=("Segoe UI", 16, "bold"))
     pgn_label.pack(anchor="w", padx=10, pady=(10, 5))
 
-    pgn_textbox = ctk.CTkTextbox(side_frame, height=400, font=("Segoe UI", 12))
+    pgn_textbox = ctk.CTkTextbox(
+        side_frame,
+        height=300,
+        font=("Segoe UI", 12)
+    )
     pgn_textbox.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
     draw_board()
