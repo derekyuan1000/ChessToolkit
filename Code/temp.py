@@ -7,12 +7,14 @@ import customtkinter as ctk
 from datetime import datetime
 import threading
 import queue
+import re  # Import regex for PGN formatting
 
 
 class BattleArena:
     def __init__(self, root):
         self.root = root
         self.engines = {
+            "Human": "Human",
             "Stockfish": "../engines/Stockfish17.exe",
             "Komodo Dragon": "../engines/KomodoDragon3.3.exe",
             "Houdini": "../engines/Houdini.exe",
@@ -28,12 +30,15 @@ class BattleArena:
         self.move_queue = queue.Queue()
         self.selected_square = None
         self.display_update_timer = None
+        self.waiting_for_human = False
 
         # Match settings
         self.num_games = 10
         self.time_per_move = 1.0  # seconds
         self.current_game_num = 0
         self.score = {"engine1": 0, "engine2": 0, "draws": 0}
+        self.node = None  # Initialize node
+        self.current_move_index = -1  # Initialize move index
 
         self.create_gui()
         self.update_board()
@@ -70,7 +75,8 @@ class BattleArena:
             engine1_frame,
             values=list(self.engines.keys()),
             variable=self.engine1_var,
-            width=200
+            width=200,
+            command=self.on_engine_selection_change
         )
         self.engine1_menu.pack()
 
@@ -89,7 +95,8 @@ class BattleArena:
             engine2_frame,
             values=list(self.engines.keys()),
             variable=self.engine2_var,
-            width=200
+            width=200,
+            command=self.on_engine_selection_change
         )
         self.engine2_menu.pack()
 
@@ -149,6 +156,9 @@ class BattleArena:
             highlightthickness=0
         )
         self.canvas.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Add click handler for human moves
+        self.canvas.bind("<Button-1>", self.on_square_clicked)
 
         # Game info and history
         info_frame = ctk.CTkFrame(display_frame, corner_radius=0, width=300)
@@ -279,19 +289,15 @@ class BattleArena:
         self.move_text.delete("1.0", "end")
 
         if self.current_game:
-            # Format the moves in a readable way
             moves = []
             board = chess.Board()
-            i = 0
-
-            for move in self.current_game.mainline_moves():
+            for i, move in enumerate(self.current_game.mainline_moves()):
+                move_num = (i // 2) + 1
                 if i % 2 == 0:
-                    move_num = (i // 2) + 1
                     moves.append(f"{move_num}. {board.san(move)}")
                 else:
                     moves[-1] += f" {board.san(move)}"
                 board.push(move)
-                i += 1
 
             self.move_text.insert("1.0", "\n".join(moves))
 
@@ -317,16 +323,16 @@ class BattleArena:
                 x2 = x1 + square_size
                 y2 = y1 + square_size
 
-                # Light or dark square
                 color = "#e9edcc" if (row + col) % 2 == 0 else "#779556"
 
-                self.canvas.create_rectangle(
-                    x1, y1, x2, y2,
-                    fill=color,
-                    outline=""
-                )
+                if self.selected_square is not None and self.waiting_for_human:
+                    selected_col = chess.square_file(self.selected_square)
+                    selected_row = 7 - chess.square_rank(self.selected_square)
+                    if row == selected_row and col == selected_col:
+                        color = "#f7f769"
 
-                # Draw piece if present
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
+
                 square = chess.square(col, 7 - row)
                 piece = self.board.piece_at(square)
 
@@ -342,6 +348,26 @@ class BattleArena:
                         fill=text_color
                     )
 
+        if self.selected_square is not None and self.waiting_for_human:
+            for move in self.board.legal_moves:
+                if move.from_square == self.selected_square:
+                    target_col = chess.square_file(move.to_square)
+                    target_row = 7 - chess.square_rank(move.to_square)
+                    x1 = target_col * square_size
+                    y1 = target_row * square_size
+
+                    if self.board.piece_at(move.to_square):
+                        self.canvas.create_rectangle(
+                            x1, y1, x1 + square_size, y1 + square_size,
+                            outline="#f7f769", width=3
+                        )
+                    else:
+                        self.canvas.create_oval(
+                            x1 + square_size * 0.4, y1 + square_size * 0.4,
+                            x1 + square_size * 0.6, y1 + square_size * 0.6,
+                            fill="#f7f769", outline=""
+                        )
+
     def get_piece_symbol(self, piece):
         symbols = {
             'P': '♙', 'N': '♘', 'B': '♗', 'R': '♖', 'Q': '♕', 'K': '♔',
@@ -353,108 +379,137 @@ class BattleArena:
         self.draw_board()
         self.update_move_history()
 
-    def run_match(self):
-        engine1_name = self.engine1_var.get()
-        engine2_name = self.engine2_var.get()
-        engine1_path = self.engines[engine1_name]
-        engine2_path = self.engines[engine2_name]
+    def on_engine_selection_change(self, *args):
+        if self.engine1_var.get() == "Human" or self.engine2_var.get() == "Human":
+            self.games_var.set("1")
+            self.time_var.set("0.1")
+            self.update_status("Human player selected. Number of games set to 1.")
 
-        try:
-            for game_num in range(1, self.num_games + 1):
-                if not self.is_match_running:
-                    break
-
-                self.current_game_num = game_num
-                self.board = chess.Board()
-                self.current_game = chess.pgn.Game()
-
-                # Set up game headers
-                self.current_game.headers["Event"] = "Engine Battle"
-                self.current_game.headers["Date"] = datetime.now().strftime("%Y.%m.%d")
-                self.current_game.headers["White"] = engine1_name if game_num % 2 == 1 else engine2_name
-                self.current_game.headers["Black"] = engine2_name if game_num % 2 == 1 else engine1_name
-                self.current_game.headers["Round"] = str(game_num)
-
-                engine1 = chess.engine.SimpleEngine.popen_uci(
-                    engine1_path if game_num % 2 == 1 else engine2_path
-                )
-                engine2 = chess.engine.SimpleEngine.popen_uci(
-                    engine2_path if game_num % 2 == 1 else engine1_path
-                )
-
-                try:
-                    node = self.current_game
-
-                    # Initial board update
-                    self.move_queue.put("board")
-
-                    while not self.board.is_game_over() and self.is_match_running:
-                        engine = engine1 if self.board.turn == chess.WHITE else engine2
-                        result = engine.play(
-                            self.board,
-                            chess.engine.Limit(time=self.time_per_move)
-                        )
-                        self.board.push(result.move)
-                        node = node.add_variation(result.move)
-                        self.move_queue.put("board")
-
-                        # Small delay to allow GUI updates
-                        time.sleep(0.1)
-
-                finally:
-                    engine1.quit()
-                    engine2.quit()
-
-                # Update score after game ends
-                if self.board.is_checkmate():
-                    winner = "engine1" if (self.board.turn == chess.BLACK) == (game_num % 2 == 1) else "engine2"
-                    self.score[winner] += 1
-                else:
-                    self.score["draws"] += 1
-
-                self.move_queue.put("board")  # Final position update
-                self.update_score_display()
-
-        except Exception as e:
-            self.update_status(f"Error: {str(e)}")
-        finally:
-            self.is_match_running = False
-            self.stop_button.configure(state="disabled")
-            self.start_button.configure(state="normal")
-            self.update_status("Match completed.")
-
-    def start_match(self):
-        if self.is_match_running:
+    def on_square_clicked(self, event):
+        if not self.waiting_for_human:
             return
 
-        self.is_match_running = True
-        self.start_button.configure(state="disabled")
-        self.stop_button.configure(state="normal")
-        self.update_status("Match in progress...")
+        width = self.canvas.winfo_width()
+        square_size = min(width, self.canvas.winfo_height()) // 8
+        col = event.x // square_size
+        row = 7 - (event.y // square_size)
 
-        self.start_display_updates()  # Ensure display updates are running
-        self.match_thread = threading.Thread(target=self.run_match)
-        self.match_thread.start()
+        if not (0 <= col < 8 and 0 <= row < 8):
+            return
 
-    def stop_match(self):
-        self.is_match_running = False
-        self.stop_button.configure(state="disabled")
-        self.start_button.configure(state="normal")
-        self.update_status("Match stopped.")
+        square = chess.square(col, row)
+        piece = self.board.piece_at(square)
 
-    def return_to_main_menu(self):
-        self.is_match_running = False
-        self.root.destroy()
+        if self.selected_square is None:
+            if piece and piece.color == self.board.turn:
+                self.selected_square = square
+                self.draw_board()
+        else:
+            move = chess.Move(self.selected_square, square)
+            if (piece and piece.piece_type == chess.PAWN and
+                    ((self.board.turn == chess.WHITE and chess.square_rank(square) == 7) or
+                     (self.board.turn == chess.BLACK and chess.square_rank(square) == 0))):
+                move = chess.Move(self.selected_square, square, promotion=chess.QUEEN)
 
+            if move in self.board.legal_moves:
+                self.make_move(move)
 
-def start_battle_arena():
-    root = ctk.CTk()
-    root.title("Chess Engine Battle Arena")
-    root.geometry("1200x900")
+            self.selected_square = None
 
-    arena = BattleArena(root)
-    root.mainloop()
+        self.draw_board()
 
+    def make_move(self, move):
+        self.board.push(move)
+        self.node = self.node.add_variation(move)
+        self.update_move_history()
+        self.update_pgn_display()
+        self.analyze_position()
 
-if __name__ == "__main__":
-    start_battle_arena()
+    def update_pgn_display(self):
+        self.pgn_tree.delete("1.0", "end")
+        pgn_str = self.get_pgn()
+        formatted_moves = []
+        moves = re.findall(r'(\d+)\.\s+(\S+)(?:\s+(\S+))?', pgn_str)
+        for move_num, white, black in moves:
+            move_str = f"{move_num}. {white} "
+            if black:
+                move_str += black
+            formatted_moves.append(move_str)
+        self.pgn_tree.insert("1.0", "\n".join(formatted_moves))
+
+    def get_pgn(self):
+        exporter = chess.pgn.StringExporter(headers=False)
+        return self.current_game.accept(exporter)
+
+    def on_pgn_select(self, event):
+        index = self.pgn_tree.index("@%d,%d" % (event.x, event.y))
+        line = int(float(index)) - 1
+
+        if 0 <= line < len(re.findall(r'\d+\.', self.get_pgn())):
+            move_num = line + 1
+            self.go_to_move((move_num - 1) * 2)
+
+    def go_to_move(self, move_index):
+        self.board = chess.Board()
+        self.node = self.current_game
+        for i, move in enumerate(self.current_game.mainline_moves()):
+            if i > move_index:
+                break
+            self.board.push(move)
+            self.node = self.node.variation(0)
+        self.current_move_index = move_index
+        self.draw_board()
+        self.analyze_position()
+
+    def on_canvas_resize(self, event):
+        new_size = min(event.width, event.height) // 8
+        if new_size != self.square_size:
+            self.square_size = new_size
+            self.draw_board()
+
+    def on_square_hover(self, event):
+        col = event.x // self.square_size
+        row = 7 - (event.y // self.square_size)
+        square = chess.square(col, row) if (0 <= col < 8 and 0 <= row < 8) else None
+        if self.hover_square != square:
+            self.hover_square = square
+            self.draw_board()
+
+    def export_pgn(self):
+        from export_dialog import ExportDialog
+        game = self.current_game
+        game.headers["Event"] = "Chess Analysis"
+        game.headers["Date"] = datetime.now().strftime("%Y.%m.%d")
+        game.headers["White"] = "?"
+        game.headers["Black"] = "?"
+        game.headers["Result"] = self.board.result()
+        ExportDialog(self.root, str(game))
+
+    def import_pgn(self):
+        from import_dialog import ImportDialog
+        ImportDialog(self.root, self.load_pgn)
+
+    def load_pgn(self, pgn_text):
+        try:
+            import io
+            pgn_io = io.StringIO(pgn_text)
+            new_game = chess.pgn.read_game(pgn_io)
+            if new_game is None:
+                return
+
+            self.current_game = new_game
+            self.board = chess.Board()
+            self.node = self.current_game
+            self.current_move_index = -1
+
+            for move in self.current_game.mainline_moves():
+                self.board.push(move)
+                self.node = self.node.variation(0)
+                self.current_move_index += 1
+
+            self.draw_board()
+            self.update_pgn_display()
+            self.analyze_position()
+
+        except Exception as e:
+            print(f"Error importing PGN: {str(e)}")

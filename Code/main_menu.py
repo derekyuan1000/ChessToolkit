@@ -3,6 +3,7 @@ import customtkinter as ctk
 
 from Code.analysis import display_chess_board
 from Code.battle_arena import start_battle_arena  # Import the new Battle Arena function
+from Code.play_bot import play_bot_game  # Import the Play Bot Game function
 
 
 def main_menu():
@@ -14,6 +15,10 @@ def main_menu():
     def open_battle_arena():
         root.destroy()
         start_battle_arena()  # Call the Battle Arena function
+
+    def play_against_bot():
+        root.destroy()
+        play_bot_game()  # Call the Play Bot Game function
 
     # Set appearance mode and default color theme
     ctk.set_appearance_mode("dark")
@@ -48,10 +53,22 @@ def main_menu():
     )
     engine_analysis_button.pack(pady=20)
 
+    # Play against bot button
+    play_bot_button = ctk.CTkButton(
+        content_frame,
+        text="Play Against Bot",
+        font=ctk.CTkFont(family="Segoe UI", size=18),
+        height=50,
+        width=250,
+        corner_radius=10,
+        command=play_against_bot
+    )
+    play_bot_button.pack(pady=20)
+
     # Battle Arena button
     battle_arena_button = ctk.CTkButton(
         content_frame,
-        text="Battle Arena",
+        text="Battle Arena (Bot Vs Bot)",
         font=ctk.CTkFont(family="Segoe UI", size=18),
         height=50,
         width=250,
@@ -59,6 +76,8 @@ def main_menu():
         command=open_battle_arena
     )
     battle_arena_button.pack(pady=20)
+
+
 
     # Credits text
     credits_label = ctk.CTkLabel(

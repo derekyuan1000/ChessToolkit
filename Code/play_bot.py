@@ -1,0 +1,142 @@
+import chess
+import chess.engine
+import customtkinter as ctk
+from utils import get_piece_symbol
+
+
+def play_bot_game():
+    """Start a game against a bot."""
+    root = ctk.CTk()
+    root.title("Play Against Bot")
+    root.geometry("1000x800")
+
+    board = chess.Board()
+    engines = {
+        "Stockfish": "../engines/Stockfish17.exe",
+        "Komodo Dragon": "../engines/KomodoDragon3.3.exe",
+        "Houdini": "../engines/Houdini.exe",
+        "Obsidian": "../engines/Obsidian.exe",
+    }
+    engine_path = engines["Stockfish"]
+    game_started = False
+
+    def draw_board():
+        canvas.delete("all")
+        square_size = 80
+        for row in range(8):
+            for col in range(8):
+                x1, y1 = col * square_size, row * square_size
+                x2, y2 = x1 + square_size, y1 + square_size
+                color = "#e9edcc" if (row + col) % 2 == 0 else "#779556"
+                canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
+                square = chess.square(col, 7 - row)
+                piece = board.piece_at(square)
+                if piece:
+                    piece_symbol = get_piece_symbol(piece)
+                    text_color = "#ffffff" if piece.color == chess.WHITE else "#000000"
+                    canvas.create_text(
+                        x1 + square_size // 2,
+                        y1 + square_size // 2,
+                        text=piece_symbol,
+                        font=("Segoe UI", int(square_size * 0.6), "bold"),
+                        fill=text_color
+                    )
+
+    def on_square_click(event):
+        nonlocal selected_square
+        square_size = 80
+        col, row = event.x // square_size, 7 - (event.y // square_size)
+        square = chess.square(col, row)
+        if selected_square is None:
+            if board.piece_at(square) and board.piece_at(square).color == chess.WHITE:
+                selected_square = square
+        else:
+            move = chess.Move(selected_square, square)
+            if move in board.legal_moves:
+                board.push(move)
+                draw_board()
+                update_pgn()
+                selected_square = None
+                root.after(500, bot_move)
+            else:
+                selected_square = None
+        draw_board()
+
+    def bot_move():
+        with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
+            result = engine.play(board, chess.engine.Limit(time=1.0))
+            board.push(result.move)
+            draw_board()
+            update_pgn()
+
+    def update_pgn():
+        pgn_textbox.delete("1.0", "end")
+        game = chess.pgn.Game()
+        node = game
+        for move in board.move_stack:
+            node = node.add_variation(move)
+        pgn_textbox.insert("1.0", str(game))
+
+    def start_game():
+        nonlocal game_started
+        game_started = True
+        bot_menu.configure(state="disabled")
+        draw_board()
+
+    def reset_game():
+        nonlocal game_started, board
+        game_started = False
+        board = chess.Board()
+        bot_menu.configure(state="normal")
+        draw_board()
+        update_pgn()
+
+    def on_bot_selection(bot_name):
+        nonlocal engine_path
+        engine_path = engines[bot_name]
+        bot_label.configure(text=f"Current Bot: {bot_name}")
+
+    selected_square = None
+
+    # Main layout
+    main_frame = ctk.CTkFrame(root)
+    main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+    # Board section
+    board_frame = ctk.CTkFrame(main_frame, width=640, height=640)
+    board_frame.pack(side="left", padx=10, pady=10)
+    canvas = ctk.CTkCanvas(board_frame, width=640, height=640, bg="#2b2b2b", highlightthickness=0)
+    canvas.pack(fill="both", expand=True)
+    canvas.bind("<Button-1>", on_square_click)
+
+    # PGN and controls section
+    side_frame = ctk.CTkFrame(main_frame, width=300)
+    side_frame.pack(side="right", fill="y", padx=10, pady=10)
+
+    bot_label = ctk.CTkLabel(side_frame, text="Current Bot: Stockfish", font=("Segoe UI", 16, "bold"))
+    bot_label.pack(pady=(10, 20))
+
+    bot_menu = ctk.CTkOptionMenu(
+        side_frame,
+        values=list(engines.keys()),
+        command=on_bot_selection,
+        width=200
+    )
+    bot_menu.set("Stockfish")
+    bot_menu.pack(pady=(0, 20))
+
+    start_button = ctk.CTkButton(side_frame, text="Start Game", command=start_game)
+    start_button.pack(pady=(10, 10))
+
+    reset_button = ctk.CTkButton(side_frame, text="Reset Game", command=reset_game)
+    reset_button.pack(pady=(0, 20))
+
+    pgn_label = ctk.CTkLabel(side_frame, text="PGN:", font=("Segoe UI", 16, "bold"))
+    pgn_label.pack(anchor="w", padx=10, pady=(10, 5))
+
+    pgn_textbox = ctk.CTkTextbox(side_frame, height=400, font=("Segoe UI", 12))
+    pgn_textbox.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+    draw_board()
+    root.mainloop()
+
