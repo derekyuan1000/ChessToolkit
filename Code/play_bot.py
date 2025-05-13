@@ -19,6 +19,8 @@ def play_bot_game():
     }
     engine_path = engines["Stockfish"]
     game_started = False
+    selected_square = None
+    hover_square = None
 
     def draw_board():
         canvas.delete("all")
@@ -27,9 +29,18 @@ def play_bot_game():
             for col in range(8):
                 x1, y1 = col * square_size, row * square_size
                 x2, y2 = x1 + square_size, y1 + square_size
-                color = "#e9edcc" if (row + col) % 2 == 0 else "#779556"
-                canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
                 square = chess.square(col, 7 - row)
+
+                # Determine square color
+                color = "#e9edcc" if (row + col) % 2 == 0 else "#779556"
+                if square == selected_square:
+                    color = "#f7f769"  # Bright yellow for selected square
+                elif square == hover_square:
+                    color = "#baca44" if (row + col) % 2 == 0 else "#8fb344"  # Green for hover
+
+                canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
+
+                # Draw piece if present
                 piece = board.piece_at(square)
                 if piece:
                     piece_symbol = get_piece_symbol(piece)
@@ -41,6 +52,21 @@ def play_bot_game():
                         font=("Segoe UI", int(square_size * 0.6), "bold"),
                         fill=text_color
                     )
+        update_turn_indicator()
+
+    def update_turn_indicator():
+        if board.is_checkmate():
+            turn_label.configure(text=f"Checkmate! {'White' if not board.turn else 'Black'} wins!")
+            turn_frame.configure(fg_color="#d64045")  # Red for checkmate
+        elif board.is_stalemate():
+            turn_label.configure(text="Stalemate! Game is drawn.")
+            turn_frame.configure(fg_color="#777777")  # Gray for stalemate
+        elif board.is_check():
+            turn_label.configure(text=f"Check! {'White' if board.turn else 'Black'} to move.")
+            turn_frame.configure(fg_color="#e69a00")  # Orange for check
+        else:
+            turn_label.configure(text=f"{'White' if board.turn else 'Black'} to move")
+            turn_frame.configure(fg_color="#1f538d" if board.turn else "#333333")  # Blue for white, dark for black
 
     def on_square_click(event):
         nonlocal selected_square
@@ -62,6 +88,15 @@ def play_bot_game():
                 selected_square = None
         draw_board()
 
+    def on_square_hover(event):
+        nonlocal hover_square
+        square_size = 80
+        col, row = event.x // square_size, 7 - (event.y // square_size)
+        square = chess.square(col, row)
+        if hover_square != square:
+            hover_square = square
+            draw_board()
+
     def bot_move():
         with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
             result = engine.play(board, chess.engine.Limit(time=1.0))
@@ -81,13 +116,24 @@ def play_bot_game():
         nonlocal game_started
         game_started = True
         bot_menu.configure(state="disabled")
+        start_button.configure(text="Resign", command=resign_game)
         draw_board()
 
+    def resign_game():
+        nonlocal game_started
+        game_started = False
+        bot_menu.configure(state="normal")
+        start_button.configure(text="Start Game", command=start_game)
+        update_status("You resigned. Game over.")
+
     def reset_game():
-        nonlocal game_started, board
+        nonlocal game_started, board, selected_square, hover_square
         game_started = False
         board = chess.Board()
+        selected_square = None
+        hover_square = None
         bot_menu.configure(state="normal")
+        start_button.configure(text="Start Game", command=start_game)
         draw_board()
         update_pgn()
 
@@ -96,7 +142,8 @@ def play_bot_game():
         engine_path = engines[bot_name]
         bot_label.configure(text=f"Current Bot: {bot_name}")
 
-    selected_square = None
+    def update_status(message):
+        status_label.configure(text=message)
 
     # Main layout
     main_frame = ctk.CTkFrame(root)
@@ -108,6 +155,13 @@ def play_bot_game():
     canvas = ctk.CTkCanvas(board_frame, width=640, height=640, bg="#2b2b2b", highlightthickness=0)
     canvas.pack(fill="both", expand=True)
     canvas.bind("<Button-1>", on_square_click)
+    canvas.bind("<Motion>", on_square_hover)
+
+    # Turn indicator
+    turn_frame = ctk.CTkFrame(board_frame, height=40, fg_color="#1f538d")
+    turn_frame.pack(fill="x", padx=10, pady=(0, 10))
+    turn_label = ctk.CTkLabel(turn_frame, text="White to move", font=("Segoe UI", 16, "bold"))
+    turn_label.pack(pady=10)
 
     # PGN and controls section
     side_frame = ctk.CTkFrame(main_frame, width=300)
@@ -131,6 +185,9 @@ def play_bot_game():
     reset_button = ctk.CTkButton(side_frame, text="Reset Game", command=reset_game)
     reset_button.pack(pady=(0, 20))
 
+    status_label = ctk.CTkLabel(side_frame, text="", font=("Segoe UI", 14))
+    status_label.pack(pady=(10, 10))
+
     pgn_label = ctk.CTkLabel(side_frame, text="PGN:", font=("Segoe UI", 16, "bold"))
     pgn_label.pack(anchor="w", padx=10, pady=(10, 5))
 
@@ -139,4 +196,3 @@ def play_bot_game():
 
     draw_board()
     root.mainloop()
-
