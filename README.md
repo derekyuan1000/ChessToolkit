@@ -1,12 +1,14 @@
 # Chess Toolkit Pro
 
-Chess Toolkit Pro is a modern chess analysis and visualization tool designed for players and enthusiasts. It provides an interactive chessboard, game history tracking, and engine analysis to help you improve your chess skills.
+Chess Toolkit Pro is a modern chess analysis and visualization tool designed for players and enthusiasts. It provides an
+interactive chessboard, game history tracking, and engine analysis to help you improve your chess skills.
 
 ## Features
 
 - **Interactive Chessboard**: Play and analyze games with a visually appealing chessboard.
 - **Game History**: View and navigate through the move history using a PGN tree.
-- **Engine Analysis**: Leverage powerful chess engines like Stockfish, Komodo Dragon, Houdini, and Obsidian for position evaluation and best move suggestions.
+- **Engine Analysis**: Leverage powerful chess engines like Stockfish, Komodo Dragon, Houdini, and Obsidian for position
+  evaluation and best move suggestions.
 - **Evaluation Bar**: Visualize the engine's evaluation of the current position with a gradient bar and numerical score.
 - **Resizable Board**: The chessboard dynamically scales with the window size for an optimal experience.
 
@@ -63,7 +65,8 @@ This project is licensed under the MIT License. See the [LICENSE](LICENCE) file 
 
 ## Contributing
 
-Contributions are welcome! Feel free to submit issues or pull requests to improve the project or email me at derekyuan10000@gmail.com
+Contributions are welcome! Feel free to submit issues or pull requests to improve the project or email me at
+derekyuan10000@gmail.com
 
 ## Acknowledgments
 

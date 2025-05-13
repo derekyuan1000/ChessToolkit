@@ -1,6 +1,8 @@
-import customtkinter as ctk
 import chess
+import customtkinter as ctk
+
 from Code.analysis import display_chess_board
+
 
 def main_menu():
     def start_engine_analysis():
@@ -51,5 +53,6 @@ def main_menu():
     credits_label.pack(side="bottom", pady=10)
 
     root.mainloop()
+
 
 main_menu()

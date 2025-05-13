@@ -1,8 +1,10 @@
-import customtkinter as ctk
-from gui import ModernChessGUI
+import os
+
 import chess
 import chess.engine
-import os
+import customtkinter as ctk
+
+from gui import ModernChessGUI
 
 engine_path = os.path.abspath("../engines/Stockfish17.exe")
 

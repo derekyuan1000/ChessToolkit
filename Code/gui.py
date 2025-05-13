@@ -1,11 +1,13 @@
-import chess
-import chess.pgn
-import chess.engine
-import customtkinter as ctk
-from PIL import Image, ImageTk
 import re
-import os
+
+import chess
+import chess.engine
+import chess.pgn
+import customtkinter as ctk
+
+
 from utils import get_piece_symbol
+
 
 class ModernChessGUI:
     def __init__(self, root, position, engine_path="../engines/Stockfish17.exe"):
@@ -51,17 +53,47 @@ class ModernChessGUI:
         self.header = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
         self.header.pack(fill="x", padx=20, pady=10)
 
+        # Left section with title and import/export buttons
+        left_section = ctk.CTkFrame(self.header, fg_color="transparent")
+        left_section.pack(side="left")
+
         # App title
         self.title_label = ctk.CTkLabel(
-            self.header,
+            left_section,
             text="Chess Toolkit Pro",
             font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold")
         )
         self.title_label.pack(side="left")
 
-        # Engine selection
+        # Import/Export buttons
+        buttons_frame = ctk.CTkFrame(left_section, fg_color="transparent")
+        buttons_frame.pack(side="left", padx=(20, 0))
+
+        self.import_button = ctk.CTkButton(
+            buttons_frame,
+            text="Import PGN",
+            width=100,
+            height=32,
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            corner_radius=8,
+            command=self.import_pgn
+        )
+        self.import_button.pack(side="left", padx=(0, 10))
+
+        self.export_button = ctk.CTkButton(
+            buttons_frame,
+            text="Export PGN",
+            width=100,
+            height=32,
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            corner_radius=8,
+            command=self.export_pgn
+        )
+        self.export_button.pack(side="left")
+
+        # Engine selection (right side)
         self.engine_var = ctk.StringVar(value="Stockfish")
-        
+
         self.engine_menu = ctk.CTkOptionMenu(
             self.header,
             values=list(self.engines.keys()),
@@ -178,7 +210,7 @@ class ModernChessGUI:
             for col in range(8):
                 x = col * self.square_size
                 y = row * self.square_size
-                color = "#e9edcc" if (row + col) % 2 == 0 else "#779556"  # Chess.com colors
+                color = "#e9edcc" if (row + col) % 2 == 0 else "#779556"
                 square = chess.square(col, 7 - row)
 
                 # Highlight selected and hover squares
@@ -261,14 +293,10 @@ class ModernChessGUI:
         self.analyze_position()
 
     def analyze_position(self):
-        try:
-            with chess.engine.SimpleEngine.popen_uci(self.engine_path) as engine:
-                info = engine.analyse(self.board, chess.engine.Limit(time=self.THINK_TIME))
-                self.display_analysis(info)
-                self.update_evaluation_bar(info['score'].relative)
-        except Exception as e:
-            self.analysis_text.delete("1.0", "end")
-            self.analysis_text.insert("1.0", f"Error analyzing position: {str(e)}")
+        with chess.engine.SimpleEngine.popen_uci(self.engine_path) as engine:
+            info = engine.analyse(self.board, chess.engine.Limit(time=self.THINK_TIME))
+            self.display_analysis(info)
+            self.update_evaluation_bar(info['score'].relative)
 
     def display_analysis(self, info):
         self.analysis_text.delete("1.0", "end")
@@ -281,8 +309,14 @@ class ModernChessGUI:
 
     def format_score(self, score):
         if score.is_mate():
-            return f"M{abs(score.mate())}"
-        return f"{score.score() / 100:.2f}"
+            mate_value = score.mate()
+            if not self.board.turn:
+                mate_value = -mate_value
+            return f"M{mate_value}"
+        cp_score = score.score()
+        if not self.board.turn:
+            cp_score = -cp_score
+        return f"{cp_score / 100:.2f}"
 
     def format_pv(self, pv):
         board_copy = self.board.copy()
@@ -293,18 +327,24 @@ class ModernChessGUI:
         return " ".join(moves[:5]) + ("..." if len(moves) > 5 else "")
 
     def update_evaluation_bar(self, score):
-        self.evaluation_bar.delete("all")  # Clear previous drawings
+
+        self.evaluation_bar.delete("all")
         bar_width = self.evaluation_bar.winfo_width()
         bar_height = self.evaluation_bar.winfo_height()
 
         TEXT_PADDING = 20
         FONT_SIZE = 12
 
-        # Calculate evaluation value (0 to 1)
         if score.is_mate():
-            eval_value = 1.0 if score.mate() > 0 else 0.0
+            mate_value = score.mate()
+            if not self.board.turn:
+                mate_value = -mate_value
+            return f"M{mate_value}"
         else:
-            eval_value = 1 / (1 + 10 ** (-score.score() / 400))
+            if not self.board.turn:
+                score = -score
+            cp_score = score.score()
+            eval_value = 1 / (1 + 10 ** (-cp_score / 400))
 
         # Calculate divider position
         divider_x = int(eval_value * bar_width)
@@ -325,10 +365,9 @@ class ModernChessGUI:
 
         # Format score text
         if score.is_mate():
-            text = f"M{abs(score.mate())}"
+            text = f"M{score.mate()}"
         else:
-            eval_score = score.score() / 100
-            text = f"{eval_score:+.2f}"
+            text = f"{score.score() / 100:+.2f}"
 
         # Position and style text based on winning side
         text_y = bar_height // 2
@@ -347,8 +386,7 @@ class ModernChessGUI:
             text=text,
             fill=text_color,
             font=("Segoe UI", FONT_SIZE, "bold"),
-            anchor=text_anchor
-        )
+            anchor=text_anchor)
 
     def on_square_clicked(self, event):
         col = (event.x) // self.square_size
@@ -430,3 +468,55 @@ class ModernChessGUI:
         if self.hover_square != square:
             self.hover_square = square
             self.draw_board()
+
+    def export_pgn(self):
+        from export_dialog import ExportDialog
+        from datetime import datetime
+
+        # Get the full game PGN with headers
+        game = self.game
+        game.headers["Event"] = "Chess Analysis"
+        game.headers["Date"] = datetime.now().strftime("%Y.%m.%d")
+        game.headers["White"] = "?"
+        game.headers["Black"] = "?"
+        game.headers["Result"] = self.board.result()
+
+        # Create the export dialog
+        ExportDialog(self.root, str(game))
+
+    def import_pgn(self):
+        from import_dialog import ImportDialog
+        ImportDialog(self.root, self.load_pgn)
+
+    def load_pgn(self, pgn_text):
+        try:
+            import io
+            import chess.pgn
+            
+            # Create a string IO object with the PGN text
+            pgn_io = io.StringIO(pgn_text)
+            
+            # Read the game from the PGN
+            new_game = chess.pgn.read_game(pgn_io)
+            if new_game is None:
+                return
+            
+            # Reset the current game state
+            self.game = new_game
+            self.board = chess.Board()
+            self.node = self.game
+            self.current_move_index = -1
+            
+            # Play through all moves to get to the final position
+            for move in self.game.mainline_moves():
+                self.board.push(move)
+                self.node = self.node.variation(0)
+                self.current_move_index += 1
+            
+            # Update displays
+            self.draw_board()
+            self.update_pgn_display()
+            self.analyze_position()
+            
+        except Exception as e:
+            print(f"Error importing PGN: {str(e)}")
