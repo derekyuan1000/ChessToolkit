@@ -6,19 +6,13 @@ class ExportDialog:
         self.window.title("Export PGN")
         self.window.geometry("600x400")
         self.parent = parent
-        
-        # Make the window modal
         self.window.transient(parent)
         self.window.grab_set()
-        
-        # Bind the close button and window close event
         self.window.protocol("WM_DELETE_WINDOW", self.on_close)
         
-        # Create main container
         self.main_container = ctk.CTkFrame(self.window, fg_color="transparent")
         self.main_container.pack(fill="both", expand=True, padx=20, pady=20)
         
-        # Add instructions label
         instruction_label = ctk.CTkLabel(
             self.main_container,
             text="Copy the PGN text below:",
@@ -26,22 +20,17 @@ class ExportDialog:
         )
         instruction_label.pack(pady=(0, 10), anchor="w")
         
-        # Create text area
         self.pgn_text = ctk.CTkTextbox(
             self.main_container,
             font=ctk.CTkFont(family="Segoe UI", size=12),
             wrap="none"
         )
         self.pgn_text.pack(fill="both", expand=True)
-        
-        # Insert the PGN text
         self.pgn_text.insert("1.0", pgn_text)
         
-        # Create button container
         button_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
         button_frame.pack(fill="x", pady=(10, 0))
         
-        # Add Copy and Close buttons
         copy_button = ctk.CTkButton(
             button_frame,
             text="Copy to Clipboard",
@@ -59,7 +48,7 @@ class ExportDialog:
         close_button.pack(side="left")
 
     def on_close(self):
-        self.window.grab_release()  # Release the grab before destroying
+        self.window.grab_release()
         self.window.destroy()
         
     def copy_to_clipboard(self):

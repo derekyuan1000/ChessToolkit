@@ -2,6 +2,7 @@ import chess
 import customtkinter as ctk
 
 from Code.analysis import display_chess_board
+from Code.battle_arena import start_battle_arena  # Import the new Battle Arena function
 
 
 def main_menu():
@@ -9,6 +10,10 @@ def main_menu():
         root.destroy()
         starting_position = chess.STARTING_FEN
         display_chess_board(starting_position)
+
+    def open_battle_arena():
+        root.destroy()
+        start_battle_arena()  # Call the Battle Arena function
 
     # Set appearance mode and default color theme
     ctk.set_appearance_mode("dark")
@@ -42,6 +47,18 @@ def main_menu():
         command=start_engine_analysis
     )
     engine_analysis_button.pack(pady=20)
+
+    # Battle Arena button
+    battle_arena_button = ctk.CTkButton(
+        content_frame,
+        text="Battle Arena",
+        font=ctk.CTkFont(family="Segoe UI", size=18),
+        height=50,
+        width=250,
+        corner_radius=10,
+        command=open_battle_arena
+    )
+    battle_arena_button.pack(pady=20)
 
     # Credits text
     credits_label = ctk.CTkLabel(
