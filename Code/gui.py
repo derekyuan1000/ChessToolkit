@@ -61,13 +61,7 @@ class ModernChessGUI:
 
         # Engine selection
         self.engine_var = ctk.StringVar(value="Stockfish")
-        engine_label = ctk.CTkLabel(
-            self.header,
-            text="Engine:",
-            font=ctk.CTkFont(family="Segoe UI", size=14)
-        )
-        engine_label.pack(side="right", padx=(0, 10))
-
+        
         self.engine_menu = ctk.CTkOptionMenu(
             self.header,
             values=list(self.engines.keys()),
@@ -77,6 +71,13 @@ class ModernChessGUI:
             command=self.on_engine_change
         )
         self.engine_menu.pack(side="right")
+
+        engine_label = ctk.CTkLabel(
+            self.header,
+            text="Engine:",
+            font=ctk.CTkFont(family="Segoe UI", size=14)
+        )
+        engine_label.pack(side="right", padx=(0, 10))
 
     def create_main_layout(self):
         self.main_frame = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
