@@ -231,6 +231,11 @@ class BattleArena:
         )
         self.stop_button.pack(side="left", padx=20, pady=10)
 
+        def go_back():
+            self.root.destroy()
+            from Code.main_menu import main_menu
+            main_menu()
+
         back_button = ctk.CTkButton(
             self.main_container,
             text="Back",
@@ -238,31 +243,11 @@ class BattleArena:
             height=40,
             width=150,
             corner_radius=10,
-            command=self.confirm_back
+            command=go_back
         )
         back_button.pack(side="bottom", pady=10)
 
         self.start_display_updates()
-
-    def confirm_back(self):
-        confirm_window = ctk.CTkToplevel(self.root)
-        confirm_window.title("Confirm")
-        confirm_window.geometry("300x150")
-
-        label = ctk.CTkLabel(confirm_window, text="Are you sure you want to go back?", font=("Segoe UI", 14))
-        label.pack(pady=20)
-
-        def go_back():
-            confirm_window.destroy()
-            self.root.destroy()
-            from Code.main_menu import main_menu
-            main_menu()
-
-        yes_button = ctk.CTkButton(confirm_window, text="Yes", command=go_back)
-        yes_button.pack(side="left", padx=20, pady=10)
-
-        no_button = ctk.CTkButton(confirm_window, text="No", command=confirm_window.destroy)
-        no_button.pack(side="right", padx=20, pady=10)
 
     def start_display_updates(self):
         def update_handler():
