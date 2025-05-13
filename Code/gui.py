@@ -2,8 +2,6 @@ import chess
 import chess.pgn
 import chess.engine
 import tkinter as tk
-from tkinter import ttk
-from tkinter import filedialog
 import re
 from utils import get_piece_symbol
 
@@ -13,12 +11,11 @@ class ModernChessGUI:
         self.engine_path = engine_path
         self.root.configure(bg="#2d2d2d")
         self.root.title("Chess Toolkit Pro")
-        self.configure_styles()
         self.engines = {
-            "Stockfish": "engines/Stockfish17.exe",
-            "Komodo Dragon": "engines/KomodoDragon3.3.exe",
-            "Houdini": "engines/Houdini.exe",
-            "Obsidian": "engines/Obsidian.exe",
+            "Stockfish": "../engines/Stockfish17.exe",
+            "Komodo Dragon": "../engines/KomodoDragon3.3.exe",
+            "Houdini": "../engines/Houdini.exe",
+            "Obsidian": "../engines/Obsidian.exe",
         }
         self.board = chess.Board(position)
         self.square_size = 60
@@ -38,72 +35,56 @@ class ModernChessGUI:
         self.canvas.bind("<Configure>", self.on_canvas_resize)
         self.pgn_tree.bind("<<TreeviewSelect>>", self.on_pgn_select)
 
-    def configure_styles(self):
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("Modern.TFrame", background="#2d2d2d")
-        style.configure("Card.TFrame", background="#363636", borderwidth=2)
-        style.configure("PanelTitle.TLabel", background="#363636", foreground="#ffffff", font=('Segoe UI', 10, 'bold'))
-        style.configure("Modern.TCombobox", fieldbackground="#404040", foreground="#000000", selectbackground="#4a9bff")  # Changed foreground to black
-        style.configure("Modern.Treeview", background="#363636", fieldbackground="#363636", foreground="#ffffff", borderwidth=0)
-        style.map("Modern.Treeview", background=[('selected', '#4a9bff')])
-
     def create_header(self):
-        self.header = ttk.Frame(self.root, style="Modern.TFrame")
+        self.header = tk.Frame(self.root, bg="#2d2d2d")
         self.header.pack(fill=tk.X, padx=10, pady=10)
-        ttk.Label(self.header, text="Chess Toolkit Pro", font=("Segoe UI", 14, "bold"), foreground="#ffffff", background="#2d2d2d").pack(side=tk.LEFT)
+        tk.Label(self.header, text="Chess Toolkit Pro", font=("Segoe UI", 14, "bold"), fg="#ffffff", bg="#2d2d2d").pack(side=tk.LEFT)
         self.engine_var = tk.StringVar(value="Stockfish")
-        self.engine_menu = ttk.Combobox(self.header, textvariable=self.engine_var, values=list(self.engines.keys()), style="Modern.TCombobox", state="readonly")
+        self.engine_menu = tk.OptionMenu(self.header, self.engine_var, *self.engines.keys())
+        self.engine_menu.config(bg="#404040", fg="#ffffff", highlightbackground="#4a9bff")
         self.engine_menu.pack(side=tk.RIGHT, padx=10)
-        self.engine_menu.bind("<<ComboboxSelected>>", self.on_engine_change)
+        self.engine_var.trace("w", self.on_engine_change)
 
     def create_main_panes(self):
-        self.main_paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
+        self.main_paned = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, bg="#2d2d2d")
         self.main_paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
 
     def create_board_section(self):
-        self.board_container = ttk.Frame(self.main_paned, style="Card.TFrame")
-        self.board_frame = ttk.Frame(self.board_container)
+        self.board_container = tk.Frame(self.main_paned, bg="#363636", bd=2, relief=tk.RIDGE)
+        self.board_frame = tk.Frame(self.board_container, bg="#363636")
         self.board_frame.pack(padx=20, pady=20)
         self.canvas = tk.Canvas(self.board_frame, bg="#363636", highlightthickness=0)
         self.canvas.pack()
         self.canvas.bind("<Configure>", self.on_canvas_resize)
-        self.main_paned.add(self.board_container, weight=3)
+        self.main_paned.add(self.board_container)
 
     def create_side_panel(self):
-        self.side_panel = ttk.Frame(self.main_paned, style="Card.TFrame")
-        ttk.Label(self.side_panel, text="GAME HISTORY", style="PanelTitle.TLabel").pack(pady=(10, 5), padx=10, anchor='w')
-        self.pgn_tree = ttk.Treeview(self.side_panel, columns=('move', 'white', 'black'), show='headings', style="Modern.Treeview")
-        self.pgn_tree.heading('move', text='Move', anchor='w')
-        self.pgn_tree.heading('white', text='White', anchor='w')
-        self.pgn_tree.heading('black', text='Black', anchor='w')
-        self.pgn_tree.column('move', width=60)
-        self.pgn_tree.column('white', width=100)
-        self.pgn_tree.column('black', width=100)
+        self.side_panel = tk.Frame(self.main_paned, bg="#363636", bd=2, relief=tk.RIDGE)
+        tk.Label(self.side_panel, text="GAME HISTORY", font=('Segoe UI', 10, 'bold'), fg="#ffffff", bg="#363636").pack(pady=(10, 5), padx=10, anchor='w')
+        self.pgn_tree = tk.Listbox(self.side_panel, bg="#363636", fg="#ffffff", selectbackground="#4a9bff", highlightthickness=0)
         self.pgn_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
-        ttk.Label(self.side_panel, text="ENGINE ANALYSIS", style="PanelTitle.TLabel").pack(pady=(10, 5), padx=10, anchor='w')
+        tk.Label(self.side_panel, text="ENGINE ANALYSIS", font=('Segoe UI', 10, 'bold'), fg="#ffffff", bg="#363636").pack(pady=(10, 5), padx=10, anchor='w')
         self.evaluation_bar = tk.Canvas(self.side_panel, height=20, bg="#404040", highlightthickness=0)
         self.evaluation_bar.pack(fill=tk.X, padx=10, pady=(0, 5))
         self.analysis_text = tk.Text(self.side_panel, height=8, wrap=tk.WORD, bg="#404040", fg="white", insertbackground="white", padx=10, pady=5, font=("Segoe UI", 10))
         self.analysis_text.pack(fill=tk.BOTH, padx=10, pady=(0, 10))
-        self.main_paned.add(self.side_panel, weight=1)
+        self.main_paned.add(self.side_panel)
 
     def draw_board(self):
         self.canvas.delete("all")
         board_size = 8 * self.square_size
         self.canvas.config(width=board_size, height=board_size)
-        self.create_round_rect(0, 0, board_size, board_size, radius=15, fill="#1e1e1e")  # Darker background
+        self.create_round_rect(0, 0, board_size, board_size, radius=15, fill="#1e1e1e")
         for row in range(8):
             for col in range(8):
                 x = col * self.square_size
                 y = row * self.square_size
-                color = "#f0d9b5" if (row + col) % 2 == 0 else "#b58863"  # Light and dark brown squares
+                color = "#f0d9b5" if (row + col) % 2 == 0 else "#b58863"
                 square = chess.square(col, 7 - row)
                 if self.selected_square == square:
-                    color = "#ffcccb"  # Highlight selected square with light red
+                    color = "#ffcccb"
                 elif self.hover_square == square:
-                    color = "#add8e6"  # Highlight hover square with light blue
-                # Removed unnecessary borders or outlines
+                    color = "#add8e6"
                 self.canvas.create_rectangle(x, y, x + self.square_size, y + self.square_size, fill=color, outline="")
                 piece = self.board.piece_at(square)
                 if piece:
@@ -128,7 +109,7 @@ class ModernChessGUI:
             status_text = f"{'White' if self.board.turn else 'Black'} to move"
         self.header.children['!label'].configure(text=f"Chess Toolkit Pro • {status_text}")
 
-    def on_engine_change(self, event):
+    def on_engine_change(self, *args):
         engine_name = self.engine_var.get()
         self.engine_path = self.engines[engine_name]
         self.analysis_text.config(state=tk.NORMAL)
@@ -172,7 +153,6 @@ class ModernChessGUI:
         bar_width = self.evaluation_bar.winfo_width()
         for i in range(bar_width):
             ratio = i / bar_width
-            # White-to-black gradient
             color = "#%02x%02x%02x" % (int(255 * (1 - ratio)), int(255 * (1 - ratio)), int(255 * (1 - ratio)))
             self.evaluation_bar.create_line(i, 0, i, 20, fill=color)
         if score.is_mate():
@@ -180,9 +160,8 @@ class ModernChessGUI:
         else:
             eval_value = (score.score() / 100 + 10) / 20
         marker_x = eval_value * bar_width
-        self.evaluation_bar.create_line(marker_x, 0, marker_x, 20, fill="#ff0000", width=2)  # Red marker for clarity
+        self.evaluation_bar.create_line(marker_x, 0, marker_x, 20, fill="#ff0000", width=2)
 
-        # Determine text color and position
         if score.is_mate():
             text = f"M{abs(score.mate())}"
             text_color = "#000000" if score.mate() > 0 else "#ffffff"
@@ -191,11 +170,11 @@ class ModernChessGUI:
         else:
             eval_value = score.score() / 100
             text = f"{eval_value:.2f}"
-            if eval_value > 0:  # White is winning
+            if eval_value > 0:
                 text_color = "#000000"
                 text_anchor = tk.W
                 text_x = 10
-            else:  # Black is winning
+            else:
                 text_color = "#ffffff"
                 text_anchor = tk.E
                 text_x = bar_width - 10
@@ -231,22 +210,21 @@ class ModernChessGUI:
         self.update_pgn_display()
         self.analyze_position()
 
-
     def update_pgn_display(self):
-        self.pgn_tree.delete(*self.pgn_tree.get_children())
+        self.pgn_tree.delete(0, tk.END)
         pgn_str = self.get_pgn()
         moves = re.findall(r'(\d+)\.\s+(\S+)(?:\s+(\S+))?', pgn_str)
         for move_num, white, black in moves:
-            self.pgn_tree.insert("", "end", values=(move_num, white, black or ""))
+            self.pgn_tree.insert(tk.END, f"{move_num}. {white} {black or ''}")
 
     def get_pgn(self):
         exporter = chess.pgn.StringExporter(headers=False)
         return self.game.accept(exporter)
 
     def on_pgn_select(self, event):
-        selected_item = self.pgn_tree.selection()
+        selected_item = self.pgn_tree.curselection()
         if selected_item:
-            move_num = int(self.pgn_tree.item(selected_item[0], 'values')[0])
+            move_num = int(self.pgn_tree.get(selected_item[0]).split('.')[0])
             self.go_to_move((move_num - 1) * 2)
 
     def go_to_move(self, move_index):
@@ -262,7 +240,6 @@ class ModernChessGUI:
         self.analyze_position()
 
     def on_canvas_resize(self, event):
-        # Increase the scaling factor by using a larger portion of the canvas dimensions
         new_size = min(event.width, event.height) // 8
         self.square_size = new_size
         self.draw_board()
