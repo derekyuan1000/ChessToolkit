@@ -309,36 +309,19 @@ class ModernChessGUI:
         # Calculate divider position
         divider_x = int(eval_value * bar_width)
 
-        if eval_value >= 0.5:  # White is winning
-            # Draw white bar from left up to evaluation point
-            self.evaluation_bar.create_rectangle(
-                0, 0,
-                divider_x, bar_height,
-                fill="#ffffff",
-                outline=""
-            )
-            # Draw black bar from evaluation point to end
-            self.evaluation_bar.create_rectangle(
-                divider_x, 0,
-                bar_width, bar_height,
-                fill="#000000",
-                outline=""
-            )
-        else:  # Black is winning
-            # Draw white bar from start to evaluation point
-            self.evaluation_bar.create_rectangle(
-                0, 0,
-                divider_x, bar_height,
-                fill="#ffffff",
-                outline=""
-            )
-            # Draw black bar from evaluation point to end
-            self.evaluation_bar.create_rectangle(
-                divider_x, 0,
-                bar_width, bar_height,
-                fill="#000000",
-                outline=""
-            )
+        # Draw white and black sections
+        self.evaluation_bar.create_rectangle(
+            0, 0,
+            divider_x, bar_height,
+            fill="#ffffff",
+            outline=""
+        )
+        self.evaluation_bar.create_rectangle(
+            divider_x, 0,
+            bar_width, bar_height,
+            fill="#000000",
+            outline=""
+        )
 
         # Format score text
         if score.is_mate():

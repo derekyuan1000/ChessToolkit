@@ -52,5 +52,4 @@ def main_menu():
 
     root.mainloop()
 
-if __name__ == "__main__":
-    main_menu()
+main_menu()
