@@ -72,6 +72,10 @@ def play_bot_game():
 
     def on_square_click(event):
         nonlocal selected_square
+        if not game_started:
+            update_status("Press 'Start Game' to begin.")
+            return
+
         square_size = 80
         col, row = event.x // square_size, 7 - (event.y // square_size)
         square = chess.square(col, row)
@@ -170,6 +174,30 @@ def play_bot_game():
         except Exception as e:
             update_status(f"Error: {str(e)}")  # Display error message in the status label
 
+    def confirm_back():
+        confirm_window = ctk.CTkToplevel(root)
+        confirm_window.title("Confirm")
+        confirm_window.geometry("300x150")
+
+        # Center the dialog over the main tab
+        confirm_window.transient(root)
+        confirm_window.grab_set()
+
+        label = ctk.CTkLabel(confirm_window, text="Are you sure you want to go back?", font=("Segoe UI", 14))
+        label.pack(pady=20)
+
+        def go_back():
+            confirm_window.destroy()
+            root.destroy()
+            from Code.main_menu import main_menu
+            main_menu()
+
+        yes_button = ctk.CTkButton(confirm_window, text="Yes", command=go_back)
+        yes_button.pack(side="left", padx=20, pady=10)
+
+        no_button = ctk.CTkButton(confirm_window, text="No", command=confirm_window.destroy)
+        no_button.pack(side="right", padx=20, pady=10)
+
     # Main layout
     main_frame = ctk.CTkFrame(root)
     main_frame.pack(fill="both", expand=True, padx=20, pady=20)
@@ -234,6 +262,18 @@ def play_bot_game():
         font=("Segoe UI", 12)
     )
     pgn_textbox.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+    # Add "Back" button
+    back_button = ctk.CTkButton(
+        main_frame,
+        text="Back",
+        command=confirm_back,
+        corner_radius=10,
+        font=("Segoe UI", 16, "bold"),
+        height=40,
+        width=150
+    )
+    back_button.pack(side="bottom", pady=10)
 
     draw_board()
     root.mainloop()

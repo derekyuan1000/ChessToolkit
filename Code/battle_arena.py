@@ -231,17 +231,38 @@ class BattleArena:
         )
         self.stop_button.pack(side="left", padx=20, pady=10)
 
-        self.return_button = ctk.CTkButton(
-            control_frame,
-            text="Return to Main Menu",
-            font=ctk.CTkFont(family="Segoe UI", size=16),
+        back_button = ctk.CTkButton(
+            self.main_container,
+            text="Back",
+            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
             height=40,
-            width=200,
-            command=self.return_to_main_menu
+            width=150,
+            corner_radius=10,
+            command=self.confirm_back
         )
-        self.return_button.pack(side="right", padx=20, pady=10)
+        back_button.pack(side="bottom", pady=10)
 
         self.start_display_updates()
+
+    def confirm_back(self):
+        confirm_window = ctk.CTkToplevel(self.root)
+        confirm_window.title("Confirm")
+        confirm_window.geometry("300x150")
+
+        label = ctk.CTkLabel(confirm_window, text="Are you sure you want to go back?", font=("Segoe UI", 14))
+        label.pack(pady=20)
+
+        def go_back():
+            confirm_window.destroy()
+            self.root.destroy()
+            from Code.main_menu import main_menu
+            main_menu()
+
+        yes_button = ctk.CTkButton(confirm_window, text="Yes", command=go_back)
+        yes_button.pack(side="left", padx=20, pady=10)
+
+        no_button = ctk.CTkButton(confirm_window, text="No", command=confirm_window.destroy)
+        no_button.pack(side="right", padx=20, pady=10)
 
     def start_display_updates(self):
         def update_handler():
@@ -447,10 +468,12 @@ class BattleArena:
         self.root.destroy()
 
 
-def start_battle_arena():
+def start_battle_arena(fullscreen=False):  # Add fullscreen parameter
     root = ctk.CTk()
     root.title("Chess Engine Battle Arena")
     root.geometry("1200x900")
+    if fullscreen:
+        root.attributes("-fullscreen", True)  # Set fullscreen if requested
 
     arena = BattleArena(root)
     root.mainloop()
@@ -458,3 +481,4 @@ def start_battle_arena():
 
 if __name__ == "__main__":
     start_battle_arena()
+
