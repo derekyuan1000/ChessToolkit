@@ -68,7 +68,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENCE) file 
 ## Contributing
 
 Contributions are welcome! Feel free to submit issues or pull requests to improve the project or email me at
-derekyuan10000@gmail.com
+mail@derekyuan.co.uk
 
 ## Acknowledgments
 
