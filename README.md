@@ -73,4 +73,4 @@ mail@derekyuan.co.uk
 ## Acknowledgments
 
 - [python-chess](https://python-chess.readthedocs.io/) for providing a robust chess library.
-- Chess engines like Stockfish for their powerful analysis capabilities.
+- Open source engines such as Stockfish and Obsidian for making this project possible
